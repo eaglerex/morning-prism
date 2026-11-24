@@ -1,5 +1,5 @@
 // 모닝 프리즘 서비스 워커: 앱 화면을 기기에 저장해 오프라인(지하철)에서도 열리게 합니다.
-const CACHE = "morning-prism-v1";
+const CACHE = "morning-prism-v2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

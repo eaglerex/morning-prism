@@ -134,6 +134,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 <div id="player">
   <div class="in">
     <div id="now">브리핑을 불러오면 재생할 수 있습니다.</div>
+    <div id="diag" class="warn" style="font-size:13px;margin-top:4px"></div>
     <div id="pbar"><div></div></div>
     <div class="ctl">
       <button class="b" id="bPrevT" aria-label="이전 트랙">⏮</button>
@@ -173,6 +174,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <input id="sModel" type="text">
   <label for="sVoice">한국어 음성</label>
   <select id="sVoice"></select>
+  <div class="row" style="margin-top:8px"><button class="btn" id="sTest">🔊 소리 테스트</button></div>
   <p class="hint" id="voiceHint"></p>
   <label for="sProfile">청취자 소개 (브리핑 생성 시 반영)</label>
   <textarea id="sProfile" style="min-height:80px"></textarea>
@@ -243,7 +245,7 @@ const SAMPLE={
 
 /* ============ 설정 ============ */
 const DEFAULT_PROFILE="대학교 스포츠경영학과에서 3·4학년을 가르치는 교수. 과목은 스포츠미디어, 스포츠조직경영론. 출근길 운전과 지하철에서 귀로 듣는다.";
-let settings=Object.assign({key:"",model:"claude-sonnet-5-5",voice:"",profile:DEFAULT_PROFILE,keep:true,wake:true,rate:1.0},LS.get("mp_settings",{}));
+let settings=Object.assign({key:"",model:"claude-sonnet-5-5",voice:"",profile:DEFAULT_PROFILE,keep:false,wake:true,rate:1.0},LS.get("mp_settings",{}));
 function saveSettings(){LS.set("mp_settings",settings)}
 
 /* ============ 브리핑 데이터 → 문장 큐 ============ */
@@ -352,11 +354,17 @@ function speakCurrent(){
   const my=++token,s=F.sents[pos.i];
   const u=new SpeechSynthesisUtterance(s.text);
   u.lang="ko-KR";if(voice)u.voice=voice;u.rate=settings.rate;u.pitch=1;
-  u.onstart=()=>{lastAct=Date.now()};
+  let started=false;
+  u.onstart=()=>{started=true;lastAct=Date.now();diag("")};
+  setTimeout(()=>{if(playing&&my===token&&!started)diag("소리가 시작되지 않았습니다. 폰의 미디어 볼륨, 무음 모드, 한국어 음성 설치를 확인하고 ⚙설정의 '소리 테스트'를 눌러 보세요.")},3000);
   u.onend=()=>{if(my!==token||!playing)return;pos.i++;savePos();updateUI();speakCurrent()};
-  u.onerror=(e)=>{if(my!==token||!playing)return;if(e.error==="canceled"||e.error==="interrupted")return;pos.i++;speakCurrent()};
+  u.onerror=(e)=>{if(my!==token||!playing)return;if(e.error==="canceled"||e.error==="interrupted")return;
+    diag("음성 오류: "+e.error);
+    if(["not-allowed","language-unavailable","synthesis-failed","synthesis-unavailable","audio-busy","voice-unavailable"].includes(e.error)){playing=false;releaseHold();updateUI();return}
+    pos.i++;speakCurrent()};
   curUtt=u;lastAct=Date.now();synth.speak(u);
 }
+function diag(m){const d=$("#diag");if(d)d.textContent=m||""}
 function hardCancel(){token++;try{synth&&synth.cancel()}catch(e){}}
 function playFrom(t,i,all){
   if(!brief)return;
@@ -498,6 +506,19 @@ function init(){
   $("#btnSet").onclick=()=>{$("#sKey").value=settings.key;$("#sModel").value=settings.model;$("#sProfile").value=settings.profile;
     $("#sKeep").checked=settings.keep;$("#sWake").checked=settings.wake;pickVoice();dlg.showModal()};
   $("#sCancel").onclick=()=>dlg.close();
+  $("#sTest").onclick=()=>{
+    const hint=$("#voiceHint");
+    if(!synth){hint.textContent="이 브라우저는 음성 재생을 지원하지 않습니다.";return}
+    const n=synth.getVoices().filter(v=>/^ko/i.test(v.lang)).length;
+    hint.textContent="한국어 음성 "+n+"개 발견. 소리가 나는지 들어 보세요…";
+    try{synth.cancel()}catch(e){}
+    setTimeout(()=>{
+      const u=new SpeechSynthesisUtterance("안녕하세요. 모닝 프리즘 소리 테스트입니다.");u.lang="ko-KR";if(voice)u.voice=voice;
+      u.onstart=()=>{hint.textContent="한국어 음성 "+n+"개 · 재생 시작됨. 소리가 안 들리면 미디어 볼륨을 확인하세요."};
+      u.onerror=(e)=>{hint.textContent="음성 오류: "+e.error+(n?"":" · 한국어 음성이 설치되어 있지 않습니다.")};
+      curUtt=u;synth.speak(u);
+    },100);
+  };
   $("#sSave").onclick=()=>{settings.key=$("#sKey").value.trim();settings.model=$("#sModel").value.trim()||"claude-sonnet-5-5";
     settings.profile=$("#sProfile").value.trim()||DEFAULT_PROFILE;settings.voice=$("#sVoice").value;settings.keep=$("#sKeep").checked;settings.wake=$("#sWake").checked;
     saveSettings();pickVoice();dlg.close()};
