@@ -376,7 +376,7 @@ function playFrom(t,i,all){
 function play(){ if(!brief)return; playFrom(pos.t,pos.i,playAll) }
 function pause(){playing=false;hardCancel();savePos();releaseHold();updateUI()}
 function stop(){playing=false;hardCancel();pos.i=0;savePos();releaseHold();updateUI()}
-function toggle(){playing?pause():play()}
+function toggle(){if(!brief){loadSample();play();return}playing?pause():play()}
 function skip(n){ // 문장 단위 이동
   if(!brief)return;const F=flat[pos.t];let i=Math.max(0,Math.min(F.sents.length-1,pos.i+n));
   hardCancel();pos.i=i;savePos();updateUI();if(playing)setTimeout(speakCurrent,90);
