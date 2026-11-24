@@ -67,9 +67,14 @@ async def make_day(d):
     man = {"v": 1, "id": d, "iter": iters, "salt": base64.b64encode(salt).decode(), "voice": VOICE, "rate": RATE, "pitch": PITCH, "tracks": []}
     for ti, tr in enumerate(b["tracks"]):
         segfiles, segs, cur = [], [], 0.0
-        for si, sg in enumerate(tr["segments"]):
+        sem = asyncio.Semaphore(4)  # 4개씩 동시에 만들어 시간을 줄입니다
+        async def one(si, sg):
             p = os.path.join(tmp, f"t{ti}_s{si}.mp3")
-            await tts_one(spoken(sg["h"], sg["t"]), p)
+            async with sem:
+                await tts_one(spoken(sg["h"], sg["t"]), p)
+            return p
+        paths = await asyncio.gather(*[one(si, sg) for si, sg in enumerate(tr["segments"])])
+        for si, p in enumerate(paths):
             dur = MP3(p).info.length
             segs.append({"start": round(cur, 2), "dur": round(dur, 2)})
             cur += dur; segfiles.append(p)
