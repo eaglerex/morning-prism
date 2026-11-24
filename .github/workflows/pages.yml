@@ -13,6 +13,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,7 +32,7 @@ jobs:
         continue-on-error: true
         env:
           BRIEFING_PASSWORD: ${{ secrets.BRIEFING_PASSWORD }}
-        run: python tools/make_audio.py _audio 3
+        run: python tools/make_audio.py _audio 0
       - name: 사이트 조립
         run: |
           mkdir _site

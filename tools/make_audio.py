@@ -10,7 +10,7 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else "_audio"
 DAYS = int(sys.argv[2]) if len(sys.argv) > 2 else int(os.environ.get("AUDIO_DAYS", "3"))
 VOICE = os.environ.get("TTS_VOICE", "ko-KR-HyunsuMultilingualNeural")   # 남성(부드러운 톤)
 RATE = os.environ.get("TTS_RATE", "+10%")
-PITCH = os.environ.get("TTS_PITCH", "-6Hz")
+PITCH = os.environ.get("TTS_PITCH", "+0Hz")
 FALLBACK_VOICE = "ko-KR-InJoonNeural"
 PW = os.environ.get("BRIEFING_PASSWORD", "")
 FAKE = os.environ.get("FAKE_TTS") == "1"   # 시험용(소리 대신 톤)
@@ -41,12 +41,14 @@ async def tts_one(text, path):
     for n in range(5):
         v = VOICE if n < 3 else FALLBACK_VOICE
         try:
-            await edge_tts.Communicate(text, v, rate=RATE, pitch=PITCH).save(path)
+            kw = {"rate": RATE}
+            if v == VOICE and PITCH != "+0Hz": kw["pitch"] = PITCH
+            await asyncio.wait_for(edge_tts.Communicate(text, v, **kw).save(path), 120)
             if os.path.getsize(path) > 1000:
                 return
         except Exception as e:
             last = e
-        await asyncio.sleep(3 * (n + 1))
+        await asyncio.sleep(2)
     raise RuntimeError(f"음성 생성 실패: {last}")
 
 async def make_day(d):
