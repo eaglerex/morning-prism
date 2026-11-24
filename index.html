@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>모닝 프리즘 · Morning Prism</title>
+<style>
+:root{
+  --bg:#0b0d12; --card:#141821; --card2:#1a1f2b; --line:#262c3a;
+  --text:#e9ecf3; --muted:#9aa4b8; --accent:#7aa7ff;
+  --c1:#6ea8ff; --c2:#b794f6; --c3:#4ade80; --c4:#fbbf24; --c5:#fb7185;
+  --r:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;line-height:1.55}
+body{padding:0 0 calc(190px + env(safe-area-inset-bottom))}
+button{font:inherit;color:inherit;cursor:pointer}
+.wrap{max-width:860px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:6px 0 14px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo i{width:34px;height:34px;border-radius:10px;display:block;
+  background:conic-gradient(from 200deg,var(--c1),var(--c2),var(--c5),var(--c4),var(--c3),var(--c1))}
+.logo b{font-size:20px;letter-spacing:-.02em}
+.logo small{display:block;color:var(--muted);font-size:12px;margin-top:-2px}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.btn{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px 16px;min-height:48px;font-weight:600}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--accent);color:#06101f;border-color:transparent}
+.btn.ghost{background:transparent}
+.banner{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;color:var(--muted);font-size:14px;margin-bottom:14px}
+.banner b{color:var(--text)}
+.empty{text-align:center;padding:36px 16px;background:var(--card);border:1px dashed var(--line);border-radius:var(--r);margin-bottom:14px}
+.empty h2{margin:0 0 6px;font-size:20px}
+.empty p{margin:0 0 16px;color:var(--muted)}
+.track{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--tc);border-radius:var(--r);margin-bottom:12px;overflow:hidden}
+.track.active{box-shadow:0 0 0 2px var(--tc) inset}
+.thead{display:flex;align-items:center;gap:12px;padding:14px}
+.tnum{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;color:#0b0d12;background:var(--tc);flex:none}
+.tinfo{flex:1;min-width:0}
+.tinfo h3{margin:0;font-size:17px;letter-spacing:-.01em}
+.tinfo span{color:var(--muted);font-size:13px}
+.tplay{width:56px;height:56px;border-radius:50%;border:0;background:var(--tc);color:#0b0d12;font-size:22px;font-weight:800;flex:none}
+.tbar{height:4px;background:var(--line)}
+.tbar>div{height:100%;width:0;background:var(--tc)}
+details.script{border-top:1px solid var(--line)}
+details.script>summary{padding:12px 14px;color:var(--muted);font-size:14px;cursor:pointer;list-style:none}
+details.script>summary::-webkit-details-marker{display:none}
+.seg{padding:6px 14px 12px}
+.seg h4{margin:10px 0 4px;font-size:15px;color:var(--tc)}
+.seg p{margin:0;font-size:16px}
+.s{border-radius:6px;padding:1px 2px;cursor:pointer}
+.s.on{background:color-mix(in srgb,var(--tc) 30%,transparent);color:#fff}
+.s.done{color:var(--muted)}
+details.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin:14px 0}
+details.panel>summary{padding:14px;font-weight:700;cursor:pointer}
+.panel .in{padding:0 14px 14px}
+textarea,input,select{width:100%;background:#0f131b;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit}
+textarea{min-height:180px;resize:vertical}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+.hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+#gstatus{margin-top:10px;font-size:14px;color:var(--c4);white-space:pre-wrap}
+/* player */
+#player{position:fixed;left:0;right:0;bottom:0;background:rgba(14,17,25,.96);backdrop-filter:blur(10px);
+  border-top:1px solid var(--line);padding:10px 14px calc(12px + env(safe-area-inset-bottom));z-index:20}
+#player .in{max-width:860px;margin:0 auto}
+#now{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#now b{color:var(--text)}
+#pbar{height:5px;background:var(--line);border-radius:3px;margin:8px 0 10px;overflow:hidden}
+#pbar>div{height:100%;width:0;background:linear-gradient(90deg,var(--c1),var(--c2),var(--c5))}
+.ctl{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.ctl .b{min-width:46px;height:52px;border-radius:14px;border:1px solid var(--line);background:var(--card2);font-size:18px}
+.ctl .b.main{min-width:74px;height:58px;background:var(--accent);color:#06101f;border:0;font-size:24px;font-weight:800}
+.chips{display:flex;gap:6px;margin-top:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.chip{padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;font-size:14px;min-height:38px}
+.chip.on{background:var(--accent);color:#06101f;border-color:transparent;font-weight:700}
+.tog{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+.tog input{width:20px;height:20px}
+/* drive mode */
+#drive{position:fixed;inset:0;background:#05070b;z-index:50;display:none;flex-direction:column;padding:20px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+#drive.show{display:flex}
+#dtrack{font-size:22px;font-weight:800;color:var(--tc,#fff)}
+#dsub{color:var(--muted);font-size:16px;margin-top:2px}
+#dtext{flex:1;display:flex;align-items:center;font-size:clamp(24px,6vw,40px);line-height:1.4;font-weight:600;overflow:hidden}
+.dbtns{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:12px}
+.dbtns button{height:96px;border-radius:22px;border:1px solid var(--line);background:var(--card2);font-size:34px}
+.dbtns .m{background:var(--accent);color:#06101f;border:0;font-weight:800}
+.dfoot{display:flex;justify-content:space-between;margin-top:12px;gap:10px}
+dialog{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:18px;max-width:560px;width:calc(100% - 28px);padding:18px}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.warn{color:var(--c4)}
+@media (prefers-reduced-motion:no-preference){.btn,.tplay{transition:transform .08s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><i></i><div><b>모닝 프리즘</b><small id="dateLabel"></small></div></div>
+    <div class="row">
+      <button class="btn primary" id="btnSample">오늘의 샘플 브리핑 불러오기</button>
+      <button class="btn" id="btnDrive">🚗 운전 모드</button>
+      <button class="btn ghost" id="btnSet">⚙ 설정</button>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+  <div id="empty" class="empty">
+    <h2>출근길 브리핑을 준비하세요</h2>
+    <p>샘플로 바로 들어보거나, 아래 입력창에 조간 사설·기사를 붙여넣어 브리핑을 만드세요.</p>
+    <button class="btn primary" id="btnSample2">오늘의 샘플 브리핑 불러오기</button>
+  </div>
+  <div id="tracks"></div>
+
+  <details class="panel" id="inputPanel">
+    <summary>✍ 기사·사설 붙여넣어 브리핑 만들기 (API 키 필요, 선택)</summary>
+    <div class="in">
+      <label for="paste">매체별로 <b>### 조선일보</b> 처럼 제목 줄을 넣고 그 아래에 본문을 붙여넣으세요. 제목 줄이 없으면 한 덩어리로 처리합니다.</label>
+      <textarea id="paste" placeholder="### 조선일보&#10;사설 본문…&#10;&#10;### 한겨레&#10;사설 본문…"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="btnGen">브리핑 생성</button>
+        <button class="btn ghost" id="btnClear">지우기</button>
+      </div>
+      <p class="hint">API 키는 이 기기의 브라우저에만 저장됩니다(설정에서 입력). 키가 없으면 샘플 브리핑만 사용할 수 있습니다. 생성에는 수 분이 걸릴 수 있습니다.</p>
+      <div id="gstatus"></div>
+    </div>
+  </details>
+</div>
+
+<div id="player">
+  <div class="in">
+    <div id="now">브리핑을 불러오면 재생할 수 있습니다.</div>
+    <div id="pbar"><div></div></div>
+    <div class="ctl">
+      <button class="b" id="bPrevT" aria-label="이전 트랙">⏮</button>
+      <button class="b" id="bBack" aria-label="이전 문장들">⏪</button>
+      <button class="b main" id="bPlay" aria-label="재생 또는 일시정지">▶</button>
+      <button class="b" id="bStop" aria-label="정지">⏹</button>
+      <button class="b" id="bFwd" aria-label="다음 문장들">⏩</button>
+      <button class="b" id="bNextT" aria-label="다음 트랙">⏭</button>
+    </div>
+    <div class="chips">
+      <div class="row" id="speeds"></div>
+      <label class="tog"><input type="checkbox" id="playAll" checked> 전체 연속 재생</label>
+    </div>
+  </div>
+</div>
+
+<div id="drive" aria-live="polite">
+  <div id="dtrack">—</div>
+  <div id="dsub"></div>
+  <div id="dtext">재생 버튼을 눌러 시작하세요.</div>
+  <div class="dbtns">
+    <button id="dPrev" aria-label="이전 트랙">⏮</button>
+    <button id="dPlay" class="m" aria-label="재생 또는 일시정지">▶</button>
+    <button id="dNext" aria-label="다음 트랙">⏭</button>
+  </div>
+  <div class="dfoot">
+    <button class="btn" id="dSpeed">속도 1.0x</button>
+    <button class="btn" id="dExit">닫기</button>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <h3 style="margin:0 0 6px">설정</h3>
+  <label for="sKey">Anthropic API 키 (선택)</label>
+  <input id="sKey" type="password" autocomplete="off" placeholder="sk-ant-…">
+  <label for="sModel">모델 이름</label>
+  <input id="sModel" type="text">
+  <label for="sVoice">한국어 음성</label>
+  <select id="sVoice"></select>
+  <p class="hint" id="voiceHint"></p>
+  <label for="sProfile">청취자 소개 (브리핑 생성 시 반영)</label>
+  <textarea id="sProfile" style="min-height:80px"></textarea>
+  <label class="tog" style="margin-top:12px"><input type="checkbox" id="sKeep"> 백그라운드 유지 모드(무음 오디오 + 잠금화면 컨트롤) — 화면이 꺼져도 끊기지 않게 돕는 실험 기능</label>
+  <label class="tog" style="margin-top:8px"><input type="checkbox" id="sWake"> 재생 중 화면 켜짐 유지</label>
+  <div class="row" style="margin-top:16px;justify-content:flex-end">
+    <button class="btn ghost" id="sCancel">닫기</button>
+    <button class="btn primary" id="sSave">저장</button>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+/* ============ 유틸 ============ */
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+          set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const $=(s)=>document.querySelector(s);
+const CPM=340; // 1.0배속에서 분당 읽는 글자 수(추정치)
+const TM=[
+  {id:1,name:"오늘의 핵심 의제 & 7대 신문 시각 비교",goal:"10~12분",color:"var(--c1)"},
+  {id:2,name:"심층 기획·연재 & 칼럼 인사이트",goal:"8~10분",color:"var(--c2)"},
+  {id:3,name:"스포츠 & e스포츠 레이더",goal:"5~7분",color:"var(--c3)"},
+  {id:4,name:"인사·채용 & 리더십 동향",goal:"4~6분",color:"var(--c4)"},
+  {id:5,name:"집필 영감 커넥터 · 스포츠 × 미술",goal:"5~6분",color:"var(--c5)"}
+];
+
+/* ============ 샘플 브리핑 (2026-11-22 일요일 밤 기준) ============ */
+const SAMPLE={
+  id:"sample-20261122",
+  label:"샘플 · 2026년 11월 22일(일) 밤 기준",
+  note:"월요일 조간은 인쇄 전이라, 확인된 한국경제 사설(11/18~11/22)·스포츠·채용 자료로 구성한 시험판입니다. 확인하지 못한 매체의 논조는 '가설'로 표시했습니다. 내일 아침 실제 조간을 붙여넣으면 교체됩니다.",
+  tracks:[
+  {segments:[
+   {h:"오프닝",t:"좋은 아침입니다. 모닝 프리즘입니다. 이 브리핑은 2026년 11월 22일 일요일 밤에 만든 시험판입니다. 월요일 조간은 아직 인쇄 전이어서, 지금 확인되는 한국경제 사설과 이번 주 공개된 기사 제목을 바탕으로 구성했습니다. 확인되지 않은 부분은 확인되지 않았다고 분명히 말씀드리겠습니다. 내일 아침 실제 조간을 붙여넣으시면, 이 자리가 실제 내용으로 채워집니다."},
+   {h:"의제 하나 · 인공지능 거품 논란",t:"첫 번째 의제는 인공지능, 즉 에이아이 거품 논란입니다. 한국경제는 일요일자 사설에서 에이아이 이야기가 흔들리고 있다고 진단했습니다. 그리고 이 흔들림을 경제의 거품과 기초 체력을 점검하는 계기로 삼자고 주문했습니다. 금요일자 사설에서도 앤트로픽 상장에도 증시가 급락한 상황을 짚으며, 냉정하게 시장을 바라볼 때라고 했습니다. 경제지의 프레임은 분명합니다. 기술 낙관론과 시장 변동성 사이에서, 리스크 관리에 무게를 둡니다."},
+   {h:"의제 둘 · 수능과 시험 불신",t:"두 번째 의제는 수능과 시험 불신입니다. 한국경제는 18일자 사설에서 최악의 혼란 속에 치러지는 수능이라며 공정성 원칙을 강조했습니다. 일요일자 사설은 교육부 장관이 사퇴했지만 그것으로 끝이 아니라고 했습니다. 시험에 대한 불신이 번지지 않도록 막아야 한다는 취지입니다. 다만 사설 제목만으로는 혼란의 구체적인 경위까지 확인되지 않습니다. 내일 조간에서 각 매체가 책임을 어디에 두는지 비교해 보시기 바랍니다."},
+   {h:"의제 셋 · 사법부를 둘러싼 갈등",t:"세 번째 의제는 사법부를 둘러싼 갈등입니다. 한국경제는 19일자 사설에서 대법원이 12·3 계엄을 내란으로 판단한 점을 다뤘습니다. 그러면서 개별 재판은 사법부에 맡겨야 한다고 했습니다. 20일자 사설에서는 여당의 조희대 대법원장 탄핵 당론에 공감하기 어렵다고 밝혔습니다. 제목으로 보면, 입법부가 사법부를 압박하는 방식에 비판적인 입장입니다."},
+   {h:"매체별 비교 · 내일 아침 체크 포인트",t:"이제 매체별 비교입니다. 솔직히 말씀드리면, 오늘 밤 기준으로 확인된 사설은 한국경제뿐입니다. 나머지 여섯 매체는 내일 조간을 보셔야 합니다. 대신 비교의 틀을 드립니다. 첫째, 사법부 갈등에서 누구의 책임을 먼저 묻는가. 둘째, 에이아이와 증시 급락을 기회로 보는가 위기로 보는가. 셋째, 수능 사태의 책임을 정부에 두는가 제도에 두는가. 보수 성향의 조선일보와 동아일보는 입법 속도와 사법 독립을 먼저 거론할 가능성이 있습니다. 한겨레와 경향신문은 책임 규명과 사법 개혁에 방점을 둘 가능성이 있습니다. 중앙일보는 중도 보수의 시각을, 매일경제는 한국경제처럼 시장과 산업의 관점을 보일 것으로 예상됩니다. 이는 평소 경향에 근거한 가설이며, 실제 사설과 다를 수 있습니다."},
+   {h:"클로징",t:"여기까지가 첫 번째 트랙입니다. 다음은 심층 기획과 칼럼입니다."}
+  ]},
+  {segments:[
+   {h:"오프닝",t:"두 번째 트랙은 사설 너머의 질문입니다. 오늘 밤 기준으로 확인되는 연재와 칼럼은 제한적이어서, 사설에서 읽히는 구조적 질문 세 가지를 골랐습니다."},
+   {h:"질문 하나 · 수출 1조 달러 이후",t:"첫째, 수출 1조 달러 이후입니다. 한국경제는 19일자 사설에서 수출 1조 달러 달성을 쾌거라고 평가했습니다. 동시에 안주하지 말고 반도체 이후를 키울 때라고 했습니다. 한 품목에 기대는 성장은 성과이면서 동시에 취약점입니다. 내일 다른 매체가 이 숫자를 성과로 읽는지 과제로 읽는지 확인해 보세요."},
+   {h:"질문 둘 · 새만금 공항과 사회간접자본",t:"둘째, 새만금 공항입니다. 같은 날 사설은 새만금 공항 사업에 제동이 걸렸다는 소식을 다루며, 사회간접자본 사업 전반을 재검토하는 계기로 삼자고 했습니다. 지역 균형이라는 명분과 재정 효율이라는 기준이 부딪히는 대표적인 사례입니다."},
+   {h:"질문 셋 · 기업 총수 리스크",t:"셋째, 카카오 김범수 창업자의 2심 무죄입니다. 한국경제는 20일자 사설에서, 재판 과정에서 기업이 입은 피해는 누가 책임지느냐고 물었습니다. 수사와 재판의 속도, 그리고 기업 경영의 불확실성이라는 오래된 쟁점을 다시 꺼낸 셈입니다."},
+   {h:"읽는 요령",t:"내일 조간을 읽는 요령도 하나 드립니다. 사설이 결론을 말한다면, 기획과 연재는 결론에 이르는 맥락을 보여줍니다. 1면 시리즈와 오피니언면의 정례 칼럼을, 같은 이슈를 다룬 사설과 나란히 놓고 읽어 보세요. 경향신문의 정동칼럼 같은 고정 칼럼도 좋은 비교 대상입니다."}
+  ]},
+  {segments:[
+   {h:"오프닝",t:"세 번째 트랙, 스포츠와 이스포츠 레이더입니다. 이 트랙은 7대 일간지 보도 여부가 확인되지 않아, 스포츠 전문 매체와 단체 발표를 함께 참고했습니다."},
+   {h:"야구",t:"먼저 야구입니다. 삼성 라이온즈가 12년 만에 한국시리즈 정상에 올랐습니다. 첫 경기를 내주고 네 경기를 연달아 이긴 역전 우승이었고, 업셋 우승으로 평가받았습니다. 한국시리즈 최우수선수는 구자욱 선수였고, 강민호 선수는 23년 만에 첫 우승을 경험했습니다. 한편 케이비오는 2027년 트레이닝센터 전문 인력 공개 채용을 공고했습니다. 경기장 밖의 인력 구조가 달라지고 있다는 신호입니다."},
+   {h:"축구",t:"축구입니다. 21일 케이리그1에서는 서울이 전주에서 전북을 1대0으로 꺾었고, 인천은 울산을 2대1로 이겼습니다. 대전은 강릉 원정에서 강원을 3대1로 눌렀습니다."},
+   {h:"거버넌스",t:"거버넌스 소식입니다. 대한축구협회 개혁 논의는 7월 케이축구혁신위원회로 이어졌습니다. 박지성 공동위원장은 혁신위가 자문 성격이 강하다고 선을 그었고, 문화체육관광부 장관과 대한체육회장이 함께 참여하는 구조입니다. 정부, 체육회, 협회 세 주체의 권한 경계가 어디인지가 핵심입니다. 프로 쪽에서는 문체부가 올해 1월 프로야구, 프로축구, 프로농구, 프로배구, 프로골프 단체를 한자리에 모아 산업 경쟁력과 복합시설을 논의했습니다. 이달 13일에는 한국스포츠과학원이 글로벌 스포츠 미디어 주도권 경쟁을 주제로 스포츠산업 콘퍼런스를 열었습니다. 수업과 바로 연결되는 키워드입니다."},
+   {h:"이스포츠",t:"이스포츠입니다. 7월 대전에서 열린 엠에스아이 2026에서는 한화생명이스포츠가 중국의 빌리빌리 게이밍을 3대2로 꺾고 우승했습니다. 다가오는 일정도 빽빽합니다. 23일 월요일에는 마블 라이벌즈 이그나이트 결승이 총상금 100만 달러 규모로 열리고, 24일부터는 싱가포르에서 씨에스투 메이저가 시작됩니다. 26일에는 배틀그라운드 모바일 글로벌 챔피언십이 이어집니다. 일정은 주최 측 사정으로 바뀔 수 있습니다. 중계권 구조가 전통 스포츠와 다른 이스포츠가 스트리밍 플랫폼과 어떤 관계를 맺는지도, 스포츠미디어 관점에서 지켜볼 대목입니다."}
+  ]},
+  {segments:[
+   {h:"채용 시장",t:"네 번째 트랙은 인사와 채용입니다. 올해 8월 보도된 설문 결과부터 보겠습니다. 하반기에 채용 계획이 있는 기업은 약 79퍼센트였지만, 그중 대부분이 열 명 이하의 소수 채용을 계획했습니다. 채용 예산을 300만 원 미만으로 잡은 기업도 74퍼센트를 넘었습니다. 채용은 이어지지만 문은 좁아진 겁니다. 정규직 공고는 2년 새 크게 줄고 계약직과 인턴 비중이 늘었다는 분석도 있습니다. 대한상공회의소 조사에서는 신입 전용 공고 비중이 2.6퍼센트에 그쳤습니다."},
+   {h:"인재상의 변화",t:"인재상은 어떻게 달라지고 있을까요. 원티드랩 설문에서는 경력 4년에서 7년 차와 에이아이 활용 인재를 더 뽑겠다는 흐름이 나타났습니다. 학벌이나 연차보다 지금 팀의 문제를 풀 수 있는 실무 스킬을 보는 스킬 기반 채용이 핵심 키워드로 꼽힙니다. 조직 전체에 맞는 사람보다 팀에 맞는 사람을 뽑는 팀핏도 거론됩니다."},
+   {h:"조직·리더십 신호",t:"조직과 리더십 신호입니다. 교육부 장관 사퇴 소식은, 시험이라는 공적 시스템에서 신뢰가 흔들릴 때 리더가 어떤 책임을 지는지 보여주는 사례입니다. 스포츠 쪽에서는 케이비오가 트레이닝센터 전문 인력을 공개 채용합니다. 선수 관리와 의무 같은 전문 영역이 조직 안으로 들어오고 있다는 뜻입니다. 스포츠조직경영론 수업에서 인력 구조 변화 사례로 쓸 수 있습니다."}
+  ]},
+  {segments:[
+   {h:"오프닝",t:"마지막 트랙은 오늘의 글감입니다. 오늘 뉴스에서 스포츠와 미술을 잇는 두 가지를 골랐습니다."},
+   {h:"글감 하나 · 확률이 아니라 장면이 기억된다",t:"글감 하나. 제목은 확률이 아니라 장면이 기억된다, 입니다. 삼성의 한국시리즈 업셋 우승은 승리 확률표가 아니라 몇 장의 결정적인 장면으로 기억됩니다. 핵심 질문은 이것입니다. 중계 화면의 숫자와 그래픽은 한 경기의 서사를 돕는가, 아니면 장면의 힘을 덜어내는가. 미술에서는 역사화가 한 장면에 사건 전체를 압축하고, 사진에서는 결정적 순간이라는 개념이 있습니다. 스포츠미디어에서는 데이터 오버레이와 프레이밍이 연결됩니다. 세 문장 초안입니다. 한국시리즈 5차전을 앞두고 뒤집힐 확률은 5퍼센트대로 소개됐다. 그러나 우리가 기억하는 것은 확률이 아니라 한 장면이다. 화가가 사건을 한 폭에 가두듯, 중계도 무엇을 남길지 선택한다."},
+   {h:"글감 둘 · 누가 판정하는가",t:"글감 둘. 제목은 누가 판정하는가, 입니다. 수능 불신과 교육부 장관 사퇴는 공정성의 눈이 흔들릴 때 벌어지는 일입니다. 스포츠에는 심판과 비디오 판독이 있고, 미술에는 진위를 가리는 감정이 있습니다. 핵심 질문은, 판정의 권위는 사람에게서 나오는가 기술에서 나오는가입니다. 스포츠조직경영론에서는 심판 조직의 신뢰 구축으로 이어집니다. 초안입니다. 시험도, 경기도, 그림도 결국 누군가의 판정을 믿어야 성립한다. 믿음이 무너지면 기술이 아무리 정교해도 불신은 남는다. 공정성은 정확도의 문제이기 전에 신뢰의 문제다."},
+   {h:"수업 활용 포인트",t:"수업 활용 포인트입니다. 스포츠미디어 수업에서는 글감 하나를, 스포츠조직경영론에서는 글감 둘과 케이비오 인력 채용을 묶어 토론 문제로 쓸 수 있습니다. 여기까지가 오늘의 브리핑입니다. 안전운전하세요."}
+  ]}
+ ]
+};
+
+/* ============ 설정 ============ */
+const DEFAULT_PROFILE="대학교 스포츠경영학과에서 3·4학년을 가르치는 교수. 과목은 스포츠미디어, 스포츠조직경영론. 출근길 운전과 지하철에서 귀로 듣는다.";
+let settings=Object.assign({key:"",model:"claude-sonnet-5-5",voice:"",profile:DEFAULT_PROFILE,keep:true,wake:true,rate:1.0},LS.get("mp_settings",{}));
+function saveSettings(){LS.set("mp_settings",settings)}
+
+/* ============ 브리핑 데이터 → 문장 큐 ============ */
+let brief=null, flat=[];
+function breakLong(s,max){
+  const out=[];
+  while(s.length>max){
+    let k=s.lastIndexOf(", ",max); if(k<30)k=s.lastIndexOf(" ",max); if(k<30)k=max;
+    out.push(s.slice(0,k+1).trim()); s=s.slice(k+1).trim();
+  }
+  if(s)out.push(s); return out;
+}
+function splitSentences(t){
+  const parts=t.split(/(?<=[.!?。])\s+/).map(x=>x.trim()).filter(Boolean);
+  const out=[]; for(const p of parts) out.push(...breakLong(p,110)); return out;
+}
+function build(b){
+  brief=b; flat=b.tracks.map(tr=>{
+    const sents=[],segStart=[];
+    tr.segments.forEach((sg,si)=>{segStart.push(sents.length);splitSentences(sg.t).forEach(x=>sents.push({text:x,seg:si}))});
+    const chars=sents.reduce((a,s)=>a+s.text.length,0);
+    return {sents,segStart,chars};
+  });
+}
+
+/* ============ 렌더링 ============ */
+let pos={t:0,i:0}, playing=false, playAll=true, token=0, lastAct=0, curUtt=null, voice=null;
+function estMin(chars){return Math.max(1,Math.round(chars/(CPM*settings.rate)))}
+function render(){
+  $("#empty").hidden=!!brief;
+  const b=$("#banner");
+  if(brief){b.hidden=false;b.innerHTML="";const strong=document.createElement("b");strong.textContent=brief.label;b.append(strong);
+    if(brief.note){b.append(document.createElement("br"));b.append(document.createTextNode(brief.note))}
+    const tot=flat.reduce((a,t)=>a+t.chars,0);
+    b.append(document.createElement("br"));b.append(document.createTextNode("총 "+tot.toLocaleString()+"자 · 약 "+estMin(tot)+"분 ("+settings.rate.toFixed(1)+"배속 기준 추정)"))}
+  else b.hidden=true;
+  const host=$("#tracks");host.innerHTML="";
+  if(!brief)return;
+  brief.tracks.forEach((tr,ti)=>{
+    const m=TM[ti],F=flat[ti];
+    const el=document.createElement("section");el.className="track";el.id="trk"+ti;el.style.setProperty("--tc",m.color);
+    el.innerHTML='<div class="thead"><div class="tnum"></div><div class="tinfo"><h3></h3><span></span></div><button class="tplay" aria-label="이 트랙 재생">▶</button></div><div class="tbar"><div></div></div>';
+    el.querySelector(".tnum").textContent=m.id;
+    el.querySelector("h3").textContent=m.name;
+    el.querySelector(".tinfo span").textContent="목표 "+m.goal+" · 이 대본 약 "+estMin(F.chars)+"분";
+    el.querySelector(".tplay").onclick=()=>{ if(playing&&pos.t===ti){pause()} else {playFrom(ti,pos.t===ti?pos.i:0,false)} };
+    const d=document.createElement("details");d.className="script";
+    const sm=document.createElement("summary");sm.textContent="대본 보기 (문장을 누르면 거기서부터 재생)";d.append(sm);
+    tr.segments.forEach((sg,si)=>{
+      const box=document.createElement("div");box.className="seg";
+      const h=document.createElement("h4");h.textContent=sg.h;const p=document.createElement("p");
+      F.sents.forEach((s,k)=>{if(s.seg!==si)return;const sp=document.createElement("span");sp.className="s";sp.dataset.k=k;sp.textContent=s.text+" ";
+        sp.onclick=()=>playFrom(ti,k,playAll);p.append(sp)});
+      box.append(h,p);d.append(box);
+    });
+    el.append(d);host.append(el);
+  });
+  updateUI();
+}
+function updateUI(){
+  if(!brief){$("#now").textContent="브리핑을 불러오면 재생할 수 있습니다.";return}
+  const m=TM[pos.t],F=flat[pos.t],seg=F.sents[pos.i]?brief.tracks[pos.t].segments[F.sents[pos.i].seg].h:"";
+  const now=$("#now");now.innerHTML="";const b=document.createElement("b");b.textContent="트랙 "+m.id+" · "+m.name;now.append(b,document.createTextNode("  "+(seg?("— "+seg):"")));
+  $("#bPlay").textContent=playing?"⏸":"▶";$("#dPlay").textContent=playing?"⏸":"▶";
+  const totalChars=flat.reduce((a,t)=>a+t.chars,0);
+  let done=0;for(let t=0;t<pos.t;t++)done+=flat[t].chars;
+  for(let k=0;k<Math.min(pos.i,F.sents.length);k++)done+=F.sents[k].text.length;
+  $("#pbar>div").style.width=(totalChars?done/totalChars*100:0)+"%";
+  flat.forEach((f,ti)=>{
+    const el=$("#trk"+ti);if(!el)return;
+    el.classList.toggle("active",ti===pos.t);
+    el.querySelector(".tplay").textContent=(playing&&pos.t===ti)?"⏸":"▶";
+    const frac=ti<pos.t?1:ti>pos.t?0:Math.min(1,pos.i/Math.max(1,f.sents.length));
+    el.querySelector(".tbar>div").style.width=(frac*100)+"%";
+    el.querySelectorAll(".s").forEach(sp=>{const k=+sp.dataset.k;
+      sp.classList.toggle("on",ti===pos.t&&k===pos.i);
+      sp.classList.toggle("done",ti<pos.t||(ti===pos.t&&k<pos.i));});
+  });
+  $("#dtrack").textContent="트랙 "+m.id;$("#dtrack").style.setProperty("--tc",m.color);
+  $("#dsub").textContent=m.name+(seg?" · "+seg:"");
+  const cur=F.sents[pos.i];if(cur)$("#dtext").textContent=cur.text;
+  $("#dSpeed").textContent="속도 "+settings.rate.toFixed(1)+"x";
+  document.querySelectorAll("#speeds .chip").forEach(c=>c.classList.toggle("on",+c.dataset.r===settings.rate));
+  mediaMeta();
+}
+
+/* ============ TTS 엔진 ============ */
+const synth=window.speechSynthesis;
+function pickVoice(){
+  if(!synth)return;
+  const vs=synth.getVoices().filter(v=>/^ko/i.test(v.lang));
+  const sel=$("#sVoice");sel.innerHTML="";
+  const auto=document.createElement("option");auto.value="";auto.textContent="자동 선택";sel.append(auto);
+  vs.forEach(v=>{const o=document.createElement("option");o.value=v.voiceURI;o.textContent=v.name+" ("+v.lang+")";sel.append(o)});
+  sel.value=settings.voice||"";
+  voice=vs.find(v=>v.voiceURI===settings.voice)||vs.find(v=>/Google|Neural|Natural/i.test(v.name))||vs[0]||null;
+  $("#voiceHint").textContent=vs.length?"":"이 기기에서 한국어 음성을 찾지 못했습니다. 안드로이드 설정 → 일반 → 텍스트 음성 변환(TTS)에서 한국어 음성 데이터를 설치하세요.";
+}
+function speakCurrent(){
+  if(!playing||!synth)return;
+  const F=flat[pos.t];if(!F){playing=false;return}
+  if(pos.i>=F.sents.length){
+    if(playAll&&pos.t<flat.length-1){pos.t++;pos.i=0;savePos();updateUI();return speakCurrent()}
+    playing=false;pos={t:pos.t,i:0};savePos();releaseHold();updateUI();return;
+  }
+  const my=++token,s=F.sents[pos.i];
+  const u=new SpeechSynthesisUtterance(s.text);
+  u.lang="ko-KR";if(voice)u.voice=voice;u.rate=settings.rate;u.pitch=1;
+  u.onstart=()=>{lastAct=Date.now()};
+  u.onend=()=>{if(my!==token||!playing)return;pos.i++;savePos();updateUI();speakCurrent()};
+  u.onerror=(e)=>{if(my!==token||!playing)return;if(e.error==="canceled"||e.error==="interrupted")return;pos.i++;speakCurrent()};
+  curUtt=u;lastAct=Date.now();synth.speak(u);
+}
+function hardCancel(){token++;try{synth&&synth.cancel()}catch(e){}}
+function playFrom(t,i,all){
+  if(!brief)return;
+  if(!synth){setStatus("이 브라우저는 음성 재생(Web Speech)을 지원하지 않습니다. 안드로이드 Chrome을 사용하세요.");return}
+  if(all!==undefined)playAll=!!all; $("#playAll").checked=playAll;
+  hardCancel();pos={t,i};playing=true;acquireHold();savePos();updateUI();
+  setTimeout(speakCurrent,90);
+}
+function play(){ if(!brief)return; playFrom(pos.t,pos.i,playAll) }
+function pause(){playing=false;hardCancel();savePos();releaseHold();updateUI()}
+function stop(){playing=false;hardCancel();pos.i=0;savePos();releaseHold();updateUI()}
+function toggle(){playing?pause():play()}
+function skip(n){ // 문장 단위 이동
+  if(!brief)return;const F=flat[pos.t];let i=Math.max(0,Math.min(F.sents.length-1,pos.i+n));
+  hardCancel();pos.i=i;savePos();updateUI();if(playing)setTimeout(speakCurrent,90);
+}
+function gotoTrack(t){
+  if(!brief)return;t=Math.max(0,Math.min(flat.length-1,t));
+  hardCancel();pos={t,i:0};savePos();updateUI();if(playing)setTimeout(speakCurrent,90);
+}
+function nextTrack(){gotoTrack(pos.t+1)}
+function prevTrack(){ if(pos.i>3)gotoTrack(pos.t); else gotoTrack(pos.t-1) }
+function setRate(r){
+  settings.rate=r;saveSettings();render();
+  if(playing){hardCancel();setTimeout(speakCurrent,90)}
+}
+setInterval(()=>{ // 안드로이드에서 onend가 누락되는 경우 대비
+  if(playing&&synth&&!synth.speaking&&!synth.pending&&Date.now()-lastAct>2500)speakCurrent();
+},1500);
+
+/* ============ 끊김 방지: 무음 오디오 · 미디어 세션 · 화면 유지 ============ */
+let keepAudio=null,wakeLock=null;
+function makeSilence(){
+  const sr=8000,n=sr*10,buf=new ArrayBuffer(44+n),v=new DataView(buf);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,"RIFF");v.setUint32(4,36+n,true);w(8,"WAVE");w(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr,true);v.setUint16(32,1,true);v.setUint16(34,8,true);w(36,"data");v.setUint32(40,n,true);
+  new Uint8Array(buf,44).fill(128);
+  return URL.createObjectURL(new Blob([buf],{type:"audio/wav"}));
+}
+async function acquireHold(){
+  if(settings.keep){try{if(!keepAudio){keepAudio=new Audio(makeSilence());keepAudio.loop=true}await keepAudio.play()}catch(e){}}
+  if(settings.wake&&"wakeLock" in navigator){try{wakeLock=await navigator.wakeLock.request("screen")}catch(e){}}
+}
+function releaseHold(){
+  try{keepAudio&&keepAudio.pause()}catch(e){}
+  try{wakeLock&&wakeLock.release()}catch(e){} wakeLock=null;
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&playing)acquireHold() });
+function setupMedia(){
+  if(!("mediaSession" in navigator))return;
+  const h=(a,f)=>{try{navigator.mediaSession.setActionHandler(a,f)}catch(e){}};
+  h("play",()=>play());h("pause",()=>pause());h("stop",()=>stop());
+  h("previoustrack",()=>prevTrack());h("nexttrack",()=>nextTrack());
+  h("seekbackward",()=>skip(-3));h("seekforward",()=>skip(3));
+}
+function mediaMeta(){
+  if(!("mediaSession" in navigator)||!brief)return;
+  try{
+    const m=TM[pos.t];
+    navigator.mediaSession.metadata=new MediaMetadata({title:"트랙 "+m.id+" · "+m.name,artist:"모닝 프리즘",album:brief.label});
+    navigator.mediaSession.playbackState=playing?"playing":"paused";
+  }catch(e){}
+}
+
+/* ============ 위치 저장 ============ */
+function savePos(){ if(brief)LS.set("mp_pos",{id:brief.id,t:pos.t,i:pos.i}) }
+
+/* ============ 브리핑 생성 (선택: API 키) ============ */
+const SPEC=[
+ "트랙 1. 오늘의 핵심 의제와 7대 신문(조선·중앙·동아·한겨레·경향·매일경제·한국경제) 시각 비교. 사설·논설의 핵심 쟁점을 의제별로 묶고, 매체별로 쟁점 프레임·인용 주체·강조 표현·다루지 않은 것을 비교한다. 입력에 없는 매체는 '이번 입력에는 없음'이라고 말하고 추측하지 않는다.",
+ "트랙 2. 심층 기획·연재와 주요 칼럼의 맥락과 핵심 메시지 요약. 칼럼은 필자의 주장과 근거를 한두 문장으로 압축한다.",
+ "트랙 3. 스포츠 산업·거버넌스 변동, 주요 사건, e스포츠 동향. 입력에 근거한 것만 말한다.",
+ "트랙 4. 채용 트렌드, 인재상 변화, 조직 개편·리더십 신호.",
+ "트랙 5. 오늘의 시사·논조를 '스포츠와 미술의 융합적 통찰' 글감 두 개로 연결한다. 각 글감은 제목, 핵심 질문, 연결 개념(스포츠미디어·스포츠조직경영론), 미술 참고 개념, 세 문장 초안, 수업 활용 포인트 순서로 말한다."
+];
+const MIN=[11,9,6,5,5.5];
+function setStatus(t){$("#gstatus").textContent=t}
+async function callClaude(system,user){
+  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
+    headers:{"content-type":"application/json","x-api-key":settings.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:settings.model,max_tokens:6000,system,messages:[{role:"user",content:user}]})});
+  if(!res.ok){const t=await res.text();throw new Error(res.status+" "+t.slice(0,240))}
+  const j=await res.json();return (j.content||[]).map(c=>c.text||"").join("");
+}
+function parseScript(txt){
+  const segs=[];let cur=null;
+  txt.split(/\r?\n/).forEach(line=>{
+    const m=line.match(/^#{1,3}\s*(.+)$/);
+    if(m){cur={h:m[1].trim(),t:""};segs.push(cur)}
+    else if(line.trim()){if(!cur){cur={h:"본문",t:""};segs.push(cur)}cur.t+=(cur.t?" ":"")+line.trim()}
+  });
+  return segs.filter(s=>s.t);
+}
+async function generate(){
+  const src=$("#paste").value.trim();
+  if(!src){setStatus("붙여넣은 내용이 없습니다.");return}
+  if(!settings.key){setStatus("API 키가 없습니다. ⚙ 설정에서 입력하거나, 샘플 브리핑을 사용하세요.");return}
+  const today=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"});
+  const system=["너는 한국어 오디오 브리핑 작가다. 청취자는 이동 중에 귀로만 듣는다.","청취자: "+settings.profile,
+   "규칙: 한 문장은 40자 안팎으로 짧게. 괄호·기호·표·목록 기호를 쓰지 않는다. 숫자는 말하기 쉽게 단순화한다. 영문 약어는 한글 발음으로 적는다(예: 에이아이, 케이비오).",
+   "입력에 없는 사실을 만들지 않는다. 확인되지 않은 것은 '확인되지 않았다'고 말한다. 신문 문장을 그대로 인용하지 말고 요약한다. 매체 간 비교는 사실과 가설을 구분한다.",
+   "출력 형식: 소제목 줄은 '## 소제목', 그 아래 문단. 첫 소제목은 '오프닝', 마지막은 '클로징'. 다른 설명은 쓰지 않는다."].join("\n");
+  const tracks=[];$("#btnGen").disabled=true;
+  try{
+    for(let i=0;i<5;i++){
+      setStatus("트랙 "+(i+1)+"/5 생성 중… (약 "+Math.round(MIN[i]*CPM)+"자 목표)");
+      const user="오늘 날짜: "+today+"\n\n[이번 트랙 지시]\n"+SPEC[i]+"\n분량: 약 "+Math.round(MIN[i]*CPM)+"자.\n\n[입력 자료]\n"+src;
+      const out=await callClaude(system,user);
+      const segs=parseScript(out);if(!segs.length)throw new Error("트랙 "+(i+1)+" 결과를 해석하지 못했습니다.");
+      tracks.push({segments:segs});
+    }
+    const b={id:"gen-"+Date.now(),label:"생성본 · "+today,note:"붙여넣은 자료를 바탕으로 생성했습니다. 사실 관계는 원문과 대조해 주세요.",tracks};
+    LS.set("mp_brief",b);build(b);pos={t:0,i:0};render();setStatus("완료했습니다. 아래 트랙에서 재생하세요.");
+    window.scrollTo({top:0,behavior:"smooth"});
+  }catch(e){
+    const blocked=/failed to fetch|networkerror|load failed/i.test(e.message);
+    setStatus("생성 실패: "+e.message+(blocked?"\n이 화면(공유 링크 형태)은 외부 API 연결이 차단되어 있습니다. index.html 파일을 휴대폰에 저장해 Chrome에서 직접 열면 생성 기능이 동작합니다.":""));
+  }finally{$("#btnGen").disabled=false}
+}
+
+/* ============ 운전 모드 ============ */
+function driveOn(){$("#drive").classList.add("show");updateUI()}
+function driveOff(){$("#drive").classList.remove("show")}
+
+/* ============ 초기화 ============ */
+function loadSample(){stop();build(SAMPLE);pos={t:0,i:0};render();window.scrollTo({top:0})}
+function init(){
+  $("#dateLabel").textContent=new Date().toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"long"});
+  [0.8,1.0,1.2,1.5].forEach(r=>{const c=document.createElement("button");c.className="chip";c.dataset.r=r;c.textContent=r.toFixed(1)+"x";c.onclick=()=>setRate(r);$("#speeds").append(c)});
+  $("#btnSample").onclick=loadSample;$("#btnSample2").onclick=loadSample;
+  $("#btnGen").onclick=generate;$("#btnClear").onclick=()=>{$("#paste").value="";setStatus("")};
+  $("#bPlay").onclick=toggle;$("#bStop").onclick=stop;$("#bPrevT").onclick=prevTrack;$("#bNextT").onclick=nextTrack;
+  $("#bBack").onclick=()=>skip(-3);$("#bFwd").onclick=()=>skip(3);
+  $("#playAll").onchange=(e)=>{playAll=e.target.checked};
+  $("#btnDrive").onclick=driveOn;$("#dExit").onclick=driveOff;$("#dPlay").onclick=toggle;$("#dPrev").onclick=prevTrack;$("#dNext").onclick=nextTrack;
+  $("#dSpeed").onclick=()=>{const L=[0.8,1.0,1.2,1.5];setRate(L[(L.indexOf(settings.rate)+1)%L.length])};
+  const dlg=$("#dlg");
+  $("#btnSet").onclick=()=>{$("#sKey").value=settings.key;$("#sModel").value=settings.model;$("#sProfile").value=settings.profile;
+    $("#sKeep").checked=settings.keep;$("#sWake").checked=settings.wake;pickVoice();dlg.showModal()};
+  $("#sCancel").onclick=()=>dlg.close();
+  $("#sSave").onclick=()=>{settings.key=$("#sKey").value.trim();settings.model=$("#sModel").value.trim()||"claude-sonnet-5-5";
+    settings.profile=$("#sProfile").value.trim()||DEFAULT_PROFILE;settings.voice=$("#sVoice").value;settings.keep=$("#sKeep").checked;settings.wake=$("#sWake").checked;
+    saveSettings();pickVoice();dlg.close()};
+  if(synth){pickVoice();synth.onvoiceschanged=pickVoice}
+  setupMedia();
+  const saved=LS.get("mp_brief",null);
+  if(saved&&saved.tracks&&saved.tracks.length===5){build(saved);const p=LS.get("mp_pos",null);if(p&&p.id===saved.id){pos={t:p.t,i:p.i}}}
+  render();
+}
+init();
+if("serviceWorker" in navigator&&/^https?:$/.test(location.protocol)){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+</script>
+</body>
+</html>
