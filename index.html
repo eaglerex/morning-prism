@@ -114,6 +114,13 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     <p>샘플로 바로 들어보거나, 아래 입력창에 조간 사설·기사를 붙여넣어 브리핑을 만드세요.</p>
     <button class="btn primary" id="btnSample2">오늘의 샘플 브리핑 불러오기</button>
   </div>
+  <details class="panel" id="archPanel" open>
+    <summary>📚 보관함 (매일 아침 자동 업데이트)</summary>
+    <div class="in">
+      <div class="row"><select id="archSel" style="flex:1"></select><button class="btn primary" id="archLoad">불러오기</button></div>
+      <p class="hint" id="archStatus">보관함을 확인하는 중…</p>
+    </div>
+  </details>
   <div id="tracks"></div>
 
   <details class="panel" id="inputPanel">
@@ -170,6 +177,8 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <h3 style="margin:0 0 6px">설정</h3>
   <label for="sKey">Anthropic API 키 (선택)</label>
   <input id="sKey" type="password" autocomplete="off" placeholder="sk-ant-…">
+  <label for="sPw">보관함 비밀번호 (이 휴대폰에만 저장)</label>
+  <input id="sPw" type="password" autocomplete="off">
   <label for="sModel">모델 이름</label>
   <input id="sModel" type="text">
   <label for="sVoice">한국어 음성</label>
@@ -493,10 +502,53 @@ async function generate(){
 function driveOn(){$("#drive").classList.add("show");updateUI()}
 function driveOff(){$("#drive").classList.remove("show")}
 
+
+/* ============ 보관함(암호화된 일일 브리핑) ============ */
+const b64=(s)=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function decryptBrief(j,pw){
+  const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
+  const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(j.salt),iterations:j.iter,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["decrypt"]);
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(j.iv)},key,b64(j.data));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function archMsg(t){$("#archStatus").textContent=t}
+async function loadArchive(id,autoPlay){
+  if(!settings.pw){archMsg("먼저 ⚙ 설정에서 보관함 비밀번호를 입력하세요.");return false}
+  if(!window.crypto||!crypto.subtle){archMsg("이 주소에서는 복호화를 쓸 수 없습니다(https 필요).");return false}
+  try{
+    archMsg(id+" 브리핑을 여는 중…");
+    const r=await fetch("briefings/"+id+".enc.json?t="+Date.now(),{cache:"no-store"});
+    if(!r.ok)throw new Error("파일을 찾지 못했습니다("+r.status+")");
+    const b=await decryptBrief(await r.json(),settings.pw);
+    stop();LS.set("mp_brief",b);build(b);pos={t:0,i:0};render();window.scrollTo({top:0});
+    archMsg(id+" 브리핑을 열었습니다."+(b.note?"\n"+b.note:""));return true;
+  }catch(e){
+    archMsg(e.name==="OperationError"?"비밀번호가 맞지 않습니다. ⚙ 설정에서 다시 입력하세요.":"열기 실패: "+e.message);return false;
+  }
+}
+async function initArchive(){
+  const sel=$("#archSel");
+  try{
+    const r=await fetch("briefings/index.json?t="+Date.now(),{cache:"no-store"});
+    if(!r.ok)throw new Error("목록 없음");
+    const idx=await r.json();
+    if(!idx.dates||!idx.dates.length){archMsg("아직 올라온 브리핑이 없습니다.");return}
+    idx.dates.forEach(d=>{const o=document.createElement("option");o.value=d;
+      const dt=new Date(d+"T00:00:00");o.textContent=dt.toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"})+" ("+d+")";sel.append(o)});
+    $("#archLoad").onclick=()=>loadArchive(sel.value);
+    const today=new Date(Date.now()+9*3600e3).toISOString().slice(0,10);
+    const cur=LS.get("mp_brief",null);
+    if(idx.dates[0]!==today)archMsg("오늘("+today+") 브리핑은 아직 올라오지 않았습니다. 가장 최근: "+idx.dates[0]);
+    if(settings.pw&&(!cur||cur.id!==idx.dates[0]))await loadArchive(idx.dates[0]);
+    else if(!settings.pw)archMsg("⚙ 설정에서 보관함 비밀번호를 한 번 입력하면 최신 브리핑이 자동으로 열립니다.");
+    else archMsg(cur.id+" 브리핑이 열려 있습니다.");
+  }catch(e){archMsg("보관함을 불러오지 못했습니다(오프라인일 수 있습니다). 마지막으로 열었던 브리핑은 그대로 재생됩니다.")}
+}
+
 /* ============ 초기화 ============ */
 function loadSample(){stop();build(SAMPLE);pos={t:0,i:0};render();window.scrollTo({top:0})}
 function init(){
-  $("#dateLabel").textContent=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"})+" · v4";
+  $("#dateLabel").textContent=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"})+" · v5";
   [0.8,1.0,1.2,1.5].forEach(r=>{const c=document.createElement("button");c.className="chip";c.dataset.r=r;c.textContent=r.toFixed(1)+"x";c.onclick=()=>setRate(r);$("#speeds").append(c)});
   $("#btnSample").onclick=loadSample;$("#btnSample2").onclick=loadSample;
   $("#btnGen").onclick=generate;$("#btnClear").onclick=()=>{$("#paste").value="";setStatus("")};
@@ -506,7 +558,7 @@ function init(){
   $("#btnDrive").onclick=driveOn;$("#dExit").onclick=driveOff;$("#dPlay").onclick=toggle;$("#dPrev").onclick=prevTrack;$("#dNext").onclick=nextTrack;
   $("#dSpeed").onclick=()=>{const L=[0.8,1.0,1.2,1.5];setRate(L[(L.indexOf(settings.rate)+1)%L.length])};
   const dlg=$("#dlg");
-  $("#btnSet").onclick=()=>{$("#sKey").value=settings.key;$("#sModel").value=settings.model;$("#sProfile").value=settings.profile;
+  $("#btnSet").onclick=()=>{$("#sKey").value=settings.key;$("#sPw").value=settings.pw||"";$("#sModel").value=settings.model;$("#sProfile").value=settings.profile;
     $("#sKeep").checked=settings.keep;$("#sWake").checked=settings.wake;pickVoice();dlg.showModal()};
   $("#sCancel").onclick=()=>dlg.close();
   $("#sTest").onclick=()=>{
@@ -522,14 +574,15 @@ function init(){
       curUtt=u;synth.speak(u);
     },100);
   };
-  $("#sSave").onclick=()=>{settings.key=$("#sKey").value.trim();settings.model=$("#sModel").value.trim()||"claude-sonnet-5-5";
+  $("#sSave").onclick=()=>{settings.key=$("#sKey").value.trim();const oldPw=settings.pw;settings.pw=$("#sPw").value.trim();settings.model=$("#sModel").value.trim()||"claude-sonnet-5-5";
     settings.profile=$("#sProfile").value.trim()||DEFAULT_PROFILE;settings.voice=$("#sVoice").value;settings.keep=$("#sKeep").checked;settings.wake=$("#sWake").checked;
-    saveSettings();pickVoice();dlg.close()};
+    saveSettings();pickVoice();dlg.close();if(settings.pw&&settings.pw!==oldPw)initArchive()};
   if(synth){pickVoice();synth.onvoiceschanged=pickVoice}
   setupMedia();
   const saved=LS.get("mp_brief",null);
   if(saved&&saved.tracks&&saved.tracks.length===5){build(saved);const p=LS.get("mp_pos",null);if(p&&p.id===saved.id){pos={t:p.t,i:p.i}}}
   render();
+  initArchive();
 }
 init();
 if("serviceWorker" in navigator&&/^https?:$/.test(location.protocol)){navigator.serviceWorker.register("sw.js").catch(()=>{})}
