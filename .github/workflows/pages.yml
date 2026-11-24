@@ -1,0 +1,49 @@
+name: 사이트 배포(남성 아나운서 음성 생성 포함)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: _audio
+          key: audio-${{ github.run_id }}
+          restore-keys: audio-
+      - run: pip install edge-tts cryptography mutagen
+      - name: 음성 만들기(실패해도 사이트는 배포)
+        continue-on-error: true
+        env:
+          BRIEFING_PASSWORD: ${{ secrets.BRIEFING_PASSWORD }}
+        run: python tools/make_audio.py _audio 3
+      - name: 사이트 조립
+        run: |
+          mkdir _site
+          cp index.html sw.js manifest.webmanifest icon-192.png icon-512.png check.html _site/
+          cp -r briefings _site/briefings
+          if [ -d _audio ]; then cp -r _audio _site/audio; fi
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

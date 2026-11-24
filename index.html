@@ -347,6 +347,75 @@ function updateUI(){
   mediaMeta();
 }
 
+
+/* ============ 음성 파일 엔진(남성 아나운서 mp3 · 화면 꺼도 재생) ============ */
+let aMan=null,aKey=null,aEl=null,aTrack=-1,aLoading=false,aUrls={};
+function aOn(){return !!aMan&&settings.useAudio!==false}
+function sentTime(t,k){
+  const F=flat[t],M=aMan.tracks[t];if(!F||!M)return 0;
+  const s=F.sents[Math.min(k,F.sents.length-1)];if(!s)return 0;
+  const sg=M.segs[s.seg]||{start:0,dur:0};
+  let before=0,tot=0;F.sents.forEach((x,i)=>{if(x.seg===s.seg){tot+=x.text.length;if(i<k)before+=x.text.length}});
+  return sg.start+(tot?sg.dur*before/tot:0);
+}
+function timeSent(t,sec){
+  const F=flat[t],M=aMan.tracks[t];let si=0;
+  M.segs.forEach((g,i)=>{if(sec>=g.start-0.01)si=i});
+  const g=M.segs[si],idx=[];F.sents.forEach((x,i)=>{if(x.seg===si)idx.push(i)});
+  if(!idx.length)return 0;
+  const tot=idx.reduce((a,i)=>a+F.sents[i].text.length,0);let acc=0;const f=g.dur?Math.max(0,Math.min(1,(sec-g.start)/g.dur)):0;
+  for(const i of idx){acc+=F.sents[i].text.length;if(acc/tot>=f)return i}
+  return idx[idx.length-1];
+}
+async function aLoadMan(id){
+  aMan=null;aKey=null;aTrack=-1;Object.values(aUrls).forEach(u=>{try{URL.revokeObjectURL(u)}catch(e){}});aUrls={};
+  if(!settings.pw||!window.crypto||!crypto.subtle)return;
+  try{
+    const r=await fetch("audio/"+id+"/manifest.json?t="+Date.now(),{cache:"no-store"});
+    if(!r.ok)return;const m=await r.json();
+    const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(settings.pw),"PBKDF2",false,["deriveKey"]);
+    aKey=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(m.salt),iterations:m.iter,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["decrypt"]);
+    aMan=m;
+  }catch(e){aMan=null}
+}
+async function aLoadTrack(t){
+  if(aUrls[t])return aUrls[t];
+  const M=aMan.tracks[t];
+  const r=await fetch("audio/"+aMan.id+"/"+M.file);
+  if(!r.ok)throw new Error("음성 파일 "+r.status);
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(M.iv)},aKey,await r.arrayBuffer());
+  return aUrls[t]=URL.createObjectURL(new Blob([pt],{type:"audio/mpeg"}));
+}
+function aElem(){
+  if(aEl)return aEl;aEl=new Audio();aEl.preload="auto";
+  aEl.addEventListener("timeupdate",()=>{
+    if(!playing||!aOn()||aTrack!==pos.t)return;
+    const i=timeSent(pos.t,aEl.currentTime);
+    if(i!==pos.i){pos.i=i;savePos();updateUI()}
+    try{if("mediaSession" in navigator&&aEl.duration)navigator.mediaSession.setPositionState({duration:aEl.duration,playbackRate:aEl.playbackRate,position:aEl.currentTime})}catch(e){}
+  });
+  aEl.addEventListener("ended",()=>{
+    if(!playing)return;
+    if(playAll&&pos.t<flat.length-1){pos={t:pos.t+1,i:0};savePos();aPlay(pos.t,0)}
+    else{playing=false;pos={t:pos.t,i:0};savePos();releaseHold();updateUI()}
+  });
+  aEl.addEventListener("error",()=>{diag("음성 파일 재생 오류. 기기 음성으로 전환합니다.");aMan=null;if(playing){hardCancel();setTimeout(speakCurrent,90)}});
+  return aEl;
+}
+async function aPlay(t,i){
+  const el=aElem(),my=++token;aLoading=true;diag("음성 파일을 불러오는 중…");updateUI();
+  try{
+    const url=await aLoadTrack(t);if(my!==token)return;
+    if(aTrack!==t||el.src!==url){el.src=url;aTrack=t;await new Promise(res=>{const f=()=>{el.removeEventListener("loadedmetadata",f);res()};el.addEventListener("loadedmetadata",f);setTimeout(res,4000)})}
+    el.currentTime=i>0?sentTime(t,i):0;el.playbackRate=settings.rate;el.preservesPitch=true;
+    await el.play();aLoading=false;diag("");mediaMeta();
+  }catch(e){
+    aLoading=false;if(my!==token)return;
+    diag("음성 파일을 열지 못해 기기 음성으로 읽습니다. ("+(e.message||e.name)+")");aMan=null;
+    setTimeout(speakCurrent,90);
+  }
+}
+
 /* ============ TTS 엔진 ============ */
 const synth=window.speechSynthesis;
 function pickVoice(){
@@ -387,28 +456,34 @@ function playFrom(t,i,all){
   if(!synth){setStatus("이 브라우저는 음성 재생(Web Speech)을 지원하지 않습니다. 안드로이드 Chrome을 사용하세요.");return}
   if(all!==undefined)playAll=!!all; $("#playAll").checked=playAll;
   hardCancel();pos={t,i};playing=true;acquireHold();savePos();updateUI();
+  if(aOn()){aPlay(t,i);return}
   setTimeout(speakCurrent,90);
 }
 function play(){ if(!brief)return; playFrom(pos.t,pos.i,playAll) }
-function pause(){playing=false;hardCancel();savePos();releaseHold();updateUI()}
-function stop(){playing=false;hardCancel();pos.i=0;savePos();releaseHold();updateUI()}
+function pause(){playing=false;hardCancel();try{aEl&&aEl.pause()}catch(e){}savePos();releaseHold();updateUI()}
+function stop(){playing=false;hardCancel();try{if(aEl){aEl.pause();aEl.currentTime=0}}catch(e){}pos.i=0;savePos();releaseHold();updateUI()}
 function toggle(){if(!brief){loadSample();play();return}playing?pause():play()}
 function skip(n){ // 문장 단위 이동
-  if(!brief)return;const F=flat[pos.t];let i=Math.max(0,Math.min(F.sents.length-1,pos.i+n));
+  if(!brief)return;
+  if(aOn()&&aEl&&aTrack===pos.t){try{aEl.currentTime=Math.max(0,aEl.currentTime+n*5)}catch(e){}return}
+  const F=flat[pos.t];let i=Math.max(0,Math.min(F.sents.length-1,pos.i+n));
   hardCancel();pos.i=i;savePos();updateUI();if(playing)setTimeout(speakCurrent,90);
 }
 function gotoTrack(t){
   if(!brief)return;t=Math.max(0,Math.min(flat.length-1,t));
-  hardCancel();pos={t,i:0};savePos();updateUI();if(playing)setTimeout(speakCurrent,90);
+  hardCancel();pos={t,i:0};savePos();updateUI();
+  if(aOn()){if(playing)aPlay(t,0);return}
+  if(playing)setTimeout(speakCurrent,90);
 }
 function nextTrack(){gotoTrack(pos.t+1)}
 function prevTrack(){ if(pos.i>3)gotoTrack(pos.t); else gotoTrack(pos.t-1) }
 function setRate(r){
   settings.rate=r;saveSettings();render();
+  if(aOn()&&aEl){aEl.playbackRate=r;return}
   if(playing){hardCancel();setTimeout(speakCurrent,90)}
 }
 setInterval(()=>{ // 안드로이드에서 onend가 누락되는 경우 대비
-  if(playing&&synth&&!synth.speaking&&!synth.pending&&Date.now()-lastAct>2500)speakCurrent();
+  if(playing&&!aOn()&&synth&&!synth.speaking&&!synth.pending&&Date.now()-lastAct>2500)speakCurrent();
 },1500);
 
 /* ============ 끊김 방지: 무음 오디오 · 미디어 세션 · 화면 유지 ============ */
@@ -422,7 +497,7 @@ function makeSilence(){
   return URL.createObjectURL(new Blob([buf],{type:"audio/wav"}));
 }
 async function acquireHold(){
-  if(settings.keep){try{if(!keepAudio){keepAudio=new Audio(makeSilence());keepAudio.loop=true}await keepAudio.play()}catch(e){}}
+  if(settings.keep&&!aOn()){try{if(!keepAudio){keepAudio=new Audio(makeSilence());keepAudio.loop=true}await keepAudio.play()}catch(e){}}
   if(settings.wake&&"wakeLock" in navigator){try{wakeLock=await navigator.wakeLock.request("screen")}catch(e){}}
 }
 function releaseHold(){
@@ -524,8 +599,8 @@ async function loadArchive(id,autoPlay){
     const r=await fetch("briefings/"+id+".enc.json?t="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw new Error("파일을 찾지 못했습니다("+r.status+")");
     const b=await decryptBrief(await r.json(),settings.pw);
-    stop();LS.set("mp_brief",b);build(b);pos={t:0,i:0};render();window.scrollTo({top:0});
-    archMsg(id+" 브리핑을 열었습니다."+(b.note?"\n"+b.note:""));return true;
+    stop();LS.set("mp_brief",b);build(b);pos={t:0,i:0};await aLoadMan(id);render();window.scrollTo({top:0});
+    archMsg(id+" 브리핑을 열었습니다. "+(aMan?"(남성 아나운서 음성 · 화면을 꺼도 재생)":"(기기 음성으로 재생)")+(b.note?"\n"+b.note:""));return true;
   }catch(e){
     archMsg(e.name==="OperationError"?"비밀번호가 맞지 않습니다. ⚙ 설정에서 다시 입력하세요.":"열기 실패: "+e.message);return false;
   }
@@ -545,14 +620,14 @@ async function initArchive(){
     if(idx.dates[0]!==today)archMsg("오늘("+today+") 브리핑은 아직 올라오지 않았습니다. 가장 최근: "+idx.dates[0]);
     if(settings.pw&&(!cur||cur.id!==idx.dates[0]))await loadArchive(idx.dates[0]);
     else if(!settings.pw)archMsg("⚙ 설정에서 보관함 비밀번호를 한 번 입력하면 최신 브리핑이 자동으로 열립니다.");
-    else archMsg(cur.id+" 브리핑이 열려 있습니다.");
+    else{await aLoadMan(cur.id);render();archMsg(cur.id+" 브리핑이 열려 있습니다. "+(aMan?"(남성 아나운서 음성 · 화면을 꺼도 재생)":"(기기 음성으로 재생)"))}
   }catch(e){archMsg("보관함을 불러오지 못했습니다(오프라인일 수 있습니다). 마지막으로 열었던 브리핑은 그대로 재생됩니다.")}
 }
 
 /* ============ 초기화 ============ */
 function loadSample(){stop();build(SAMPLE);pos={t:0,i:0};render();window.scrollTo({top:0})}
 function init(){
-  $("#dateLabel").textContent=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"})+" · v6";
+  $("#dateLabel").textContent=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"})+" · v7";
   [0.8,1.0,1.2,1.5].forEach(r=>{const c=document.createElement("button");c.className="chip";c.dataset.r=r;c.textContent=r.toFixed(1)+"x";c.onclick=()=>setRate(r);$("#speeds").append(c)});
   $("#btnSample").onclick=loadSample;$("#btnSample2").onclick=loadSample;
   $("#btnGen").onclick=generate;$("#btnClear").onclick=()=>{$("#paste").value="";setStatus("")};
