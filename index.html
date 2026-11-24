@@ -187,6 +187,9 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 </dialog>
 
 <script>
+window.addEventListener("error",function(e){try{var d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;right:0;z-index:99;background:#7f1d1d;color:#fff;padding:10px;font-size:14px";d.textContent="오류: "+(e.message||"스크립트 로드 실패")+(e.lineno?" (줄 "+e.lineno+")":"");document.body.appendChild(d)}catch(x){}});
+</script>
+<script>
 "use strict";
 /* ============ 유틸 ============ */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -493,7 +496,7 @@ function driveOff(){$("#drive").classList.remove("show")}
 /* ============ 초기화 ============ */
 function loadSample(){stop();build(SAMPLE);pos={t:0,i:0};render();window.scrollTo({top:0})}
 function init(){
-  $("#dateLabel").textContent=new Date().toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"long"});
+  $("#dateLabel").textContent=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"})+" · v4";
   [0.8,1.0,1.2,1.5].forEach(r=>{const c=document.createElement("button");c.className="chip";c.dataset.r=r;c.textContent=r.toFixed(1)+"x";c.onclick=()=>setRate(r);$("#speeds").append(c)});
   $("#btnSample").onclick=loadSample;$("#btnSample2").onclick=loadSample;
   $("#btnGen").onclick=generate;$("#btnClear").onclick=()=>{$("#paste").value="";setStatus("")};

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>모닝 프리즘 점검</title>
+<style>
+body{margin:0;padding:16px;background:#0b0d12;color:#e9ecf3;font:18px/1.6 system-ui,"Noto Sans KR",sans-serif}
+h1{font-size:22px;margin:0 0 8px} .r{padding:10px 12px;margin:8px 0;border-radius:10px;background:#141821;word-break:break-all}
+.ok{border-left:6px solid #4ade80}.no{border-left:6px solid #fb7185}.in{border-left:6px solid #fbbf24}
+button{font:inherit;padding:16px;width:100%;margin:8px 0;border-radius:12px;border:0;background:#7aa7ff;color:#06101f;font-weight:700}
+small{color:#9aa4b8}
+</style></head><body>
+<h1>모닝 프리즘 점검</h1>
+<small>이 화면을 캡처해서 보내 주세요.</small>
+<div id="out"></div>
+<button id="b1">🔊 소리 내기 테스트</button>
+<button id="b2">한국어 음성으로 소리 내기</button>
+<script>
+var out=document.getElementById("out");
+function add(t,c){var d=document.createElement("div");d.className="r "+(c||"in");d.textContent=t;out.appendChild(d)}
+add("1. 이 화면의 자바스크립트 작동: 예 ("+new Date().toLocaleString("ko-KR")+")","ok");
+add("2. 브라우저: "+navigator.userAgent,"in");
+var s=window.speechSynthesis;
+add("3. 음성 기능(speechSynthesis) 지원: "+(s?"예":"아니오"),s?"ok":"no");
+function voices(){if(!s)return;var v=s.getVoices();var ko=v.filter(function(x){return /^ko/i.test(x.lang)});
+ var el=document.getElementById("vv");if(!el){el=document.createElement("div");el.id="vv";out.appendChild(el)}
+ el.className="r "+(ko.length?"ok":"no");el.textContent="4. 전체 음성 "+v.length+"개 / 한국어 음성 "+ko.length+"개"+(ko.length?": "+ko.map(function(x){return x.name}).join(", "):" → 한국어 음성이 없습니다")}
+if(s){voices();s.onvoiceschanged=voices;setTimeout(voices,1500)}
+function speak(lang){
+ if(!s){add("음성 기능이 없습니다","no");return}
+ s.cancel();
+ setTimeout(function(){
+  var u=new SpeechSynthesisUtterance("안녕하세요. 모닝 프리즘 소리 테스트입니다.");u.lang=lang;
+  var ko=s.getVoices().filter(function(x){return /^ko/i.test(x.lang)});if(lang==="ko-KR"&&ko[0])u.voice=ko[0];
+  u.onstart=function(){add("▶ 재생 시작됨 ("+lang+"). 소리가 들리나요? 안 들리면 미디어 볼륨을 올려 보세요.","ok")};
+  u.onend=function(){add("■ 재생 끝남","ok")};
+  u.onerror=function(e){add("✖ 오류: "+e.error,"no")};
+  s.speak(u);
+  setTimeout(function(){add("(3초 경과 확인) 말하는 중: "+s.speaking+", 대기 중: "+s.pending,"in")},3000);
+ },100);
+}
+document.getElementById("b1").onclick=function(){speak("en-US")};
+document.getElementById("b2").onclick=function(){speak("ko-KR")};
+</script></body></html>
