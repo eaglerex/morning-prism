@@ -24,6 +24,9 @@ jobs:
           key: audio-${{ github.run_id }}
           restore-keys: audio-
       - run: pip install edge-tts cryptography mutagen
+      - name: 목소리 샘플 만들기
+        continue-on-error: true
+        run: python tools/make_samples.py _samples
       - name: 음성 만들기(실패해도 사이트는 배포)
         continue-on-error: true
         env:
@@ -32,7 +35,8 @@ jobs:
       - name: 사이트 조립
         run: |
           mkdir _site
-          cp index.html sw.js manifest.webmanifest icon-192.png icon-512.png check.html _site/
+          cp index.html sw.js manifest.webmanifest icon-192.png icon-512.png check.html voices.html _site/
+          if [ -d _samples ]; then cp -r _samples _site/samples; fi
           cp -r briefings _site/briefings
           if [ -d _audio ]; then cp -r _audio _site/audio; fi
       - uses: actions/upload-pages-artifact@v3

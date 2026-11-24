@@ -8,8 +8,10 @@ from mutagen.mp3 import MP3
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "_audio"
 DAYS = int(sys.argv[2]) if len(sys.argv) > 2 else int(os.environ.get("AUDIO_DAYS", "3"))
-VOICE = os.environ.get("TTS_VOICE", "ko-KR-InJoonNeural")   # 남성
-RATE = os.environ.get("TTS_RATE", "+0%")
+VOICE = os.environ.get("TTS_VOICE", "ko-KR-HyunsuMultilingualNeural")   # 남성(부드러운 톤)
+RATE = os.environ.get("TTS_RATE", "+10%")
+PITCH = os.environ.get("TTS_PITCH", "-6Hz")
+FALLBACK_VOICE = "ko-KR-InJoonNeural"
 PW = os.environ.get("BRIEFING_PASSWORD", "")
 FAKE = os.environ.get("FAKE_TTS") == "1"   # 시험용(소리 대신 톤)
 if not PW:
@@ -36,9 +38,10 @@ async def tts_one(text, path):
         return
     import edge_tts
     last = None
-    for n in range(4):
+    for n in range(5):
+        v = VOICE if n < 3 else FALLBACK_VOICE
         try:
-            await edge_tts.Communicate(text, VOICE, rate=RATE).save(path)
+            await edge_tts.Communicate(text, v, rate=RATE, pitch=PITCH).save(path)
             if os.path.getsize(path) > 1000:
                 return
         except Exception as e:
@@ -48,15 +51,18 @@ async def tts_one(text, path):
 
 async def make_day(d):
     dst = os.path.join(OUT, d)
-    if os.path.exists(os.path.join(dst, "manifest.json")):
-        print(d, "이미 있음"); return
+    mf = os.path.join(dst, "manifest.json")
+    if os.path.exists(mf):
+        old = json.load(open(mf))
+        if (old.get("voice"), old.get("rate"), old.get("pitch")) == (VOICE, RATE, PITCH):
+            print(d, "이미 있음"); return
     b = load_brief(d)
     tmp = tempfile.mkdtemp()
     iters = 300000
     salt = os.urandom(16)
     k = key_for(salt, iters)
     os.makedirs(dst + ".part", exist_ok=True)
-    man = {"v": 1, "id": d, "iter": iters, "salt": base64.b64encode(salt).decode(), "voice": VOICE, "tracks": []}
+    man = {"v": 1, "id": d, "iter": iters, "salt": base64.b64encode(salt).decode(), "voice": VOICE, "rate": RATE, "pitch": PITCH, "tracks": []}
     for ti, tr in enumerate(b["tracks"]):
         segfiles, segs, cur = [], [], 0.0
         for si, sg in enumerate(tr["segments"]):
