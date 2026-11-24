@@ -69,7 +69,12 @@ async def make_day(d):
         lst = os.path.join(tmp, f"t{ti}.txt")
         open(lst, "w").write("".join(f"file '{p}'\n" for p in segfiles))
         full = os.path.join(tmp, f"t{ti}.mp3")
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", full], check=True)
+        if shutil.which("ffmpeg"):
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", full], check=True)
+        else:  # ffmpeg 가 없으면 mp3 를 이어 붙이기(같은 형식이라 재생에 문제 없음)
+            with open(full, "wb") as w:
+                for pth in segfiles:
+                    w.write(open(pth, "rb").read())
         iv = os.urandom(12)
         enc = AESGCM(k).encrypt(iv, open(full, "rb").read(), None)
         fn = f"t{ti+1}.bin"
