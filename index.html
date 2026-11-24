@@ -183,7 +183,9 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <input id="sModel" type="text">
   <label for="sVoice">한국어 음성</label>
   <select id="sVoice"></select>
-  <div class="row" style="margin-top:8px"><button class="btn" id="sTest">🔊 소리 테스트</button></div>
+  <label for="sPitch">목소리 높낮이 (낮출수록 굵은 남성 느낌)</label>
+  <select id="sPitch"><option value="1">보통</option><option value="0.9">약간 낮게</option><option value="0.85">낮게(기본)</option><option value="0.75">더 낮게</option><option value="0.65">아주 낮게</option></select>
+  <div class="row" style="margin-top:8px"><button class="btn" id="sTest">🔊 선택한 목소리 들어보기</button><button class="btn" id="sNext">⏭ 다음 목소리로 들어보기</button></div>
   <p class="hint" id="voiceHint"></p>
   <label for="sProfile">청취자 소개 (브리핑 생성 시 반영)</label>
   <textarea id="sProfile" style="min-height:80px"></textarea>
@@ -257,7 +259,8 @@ const SAMPLE={
 
 /* ============ 설정 ============ */
 const DEFAULT_PROFILE="대학교 스포츠경영학과에서 3·4학년을 가르치는 교수. 과목은 스포츠미디어, 스포츠조직경영론. 출근길 운전과 지하철에서 귀로 듣는다.";
-let settings=Object.assign({key:"",model:"claude-sonnet-5-5",voice:"",profile:DEFAULT_PROFILE,keep:false,wake:true,rate:1.0},LS.get("mp_settings",{}));
+let settings=Object.assign({key:"",model:"claude-sonnet-5-5",voice:"",profile:DEFAULT_PROFILE,keep:true,wake:true,rate:1.0,pitch:0.85,v:6},LS.get("mp_settings",{}));
+if(!settings.v||settings.v<6){settings.keep=true;settings.pitch=0.85;settings.voice="";settings.v=6;LS.set("mp_settings",settings)}
 function saveSettings(){LS.set("mp_settings",settings)}
 
 /* ============ 브리핑 데이터 → 문장 큐 ============ */
@@ -351,9 +354,10 @@ function pickVoice(){
   const vs=synth.getVoices().filter(v=>/^ko/i.test(v.lang));
   const sel=$("#sVoice");sel.innerHTML="";
   const auto=document.createElement("option");auto.value="";auto.textContent="자동 선택";sel.append(auto);
-  vs.forEach(v=>{const o=document.createElement("option");o.value=v.voiceURI;o.textContent=v.name+" ("+v.lang+")";sel.append(o)});
+  vs.forEach(v=>{const o=document.createElement("option");o.value=v.voiceURI;o.textContent=v.name+" · "+v.lang+(v.localService?" · 기기내":" · 온라인");sel.append(o)});
   sel.value=settings.voice||"";
-  voice=vs.find(v=>v.voiceURI===settings.voice)||vs.find(v=>/Google|Neural|Natural/i.test(v.name))||vs[0]||null;
+  const isM=v=>/(^|[^a-z])male(?!.*female)|남성|남자|ko-kr-x-(koc|kod)/i.test(v.name+" "+v.voiceURI)&&!/female|여성|여자/i.test(v.name);
+  voice=vs.find(v=>v.voiceURI===settings.voice)||vs.find(isM)||vs.find(v=>/Google|Neural|Natural/i.test(v.name))||vs[0]||null;
   $("#voiceHint").textContent=vs.length?"":"이 기기에서 한국어 음성을 찾지 못했습니다. 안드로이드 설정 → 일반 → 텍스트 음성 변환(TTS)에서 한국어 음성 데이터를 설치하세요.";
 }
 function speakCurrent(){
@@ -365,7 +369,7 @@ function speakCurrent(){
   }
   const my=++token,s=F.sents[pos.i];
   const u=new SpeechSynthesisUtterance(s.text);
-  u.lang="ko-KR";if(voice)u.voice=voice;u.rate=settings.rate;u.pitch=1;
+  u.lang="ko-KR";if(voice)u.voice=voice;u.rate=settings.rate;u.pitch=settings.pitch||1;
   let started=false;
   u.onstart=()=>{started=true;lastAct=Date.now();diag("")};
   setTimeout(()=>{if(playing&&my===token&&!started)diag("소리가 시작되지 않았습니다. 폰의 미디어 볼륨, 무음 모드, 한국어 음성 설치를 확인하고 ⚙설정의 '소리 테스트'를 눌러 보세요.")},3000);
@@ -414,7 +418,7 @@ function makeSilence(){
   const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
   w(0,"RIFF");v.setUint32(4,36+n,true);w(8,"WAVE");w(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
   v.setUint32(24,sr,true);v.setUint32(28,sr,true);v.setUint16(32,1,true);v.setUint16(34,8,true);w(36,"data");v.setUint32(40,n,true);
-  new Uint8Array(buf,44).fill(128);
+  const a=new Uint8Array(buf,44);for(let i=0;i<n;i++)a[i]=128+((i*7919)%3)-1;
   return URL.createObjectURL(new Blob([buf],{type:"audio/wav"}));
 }
 async function acquireHold(){
@@ -548,7 +552,7 @@ async function initArchive(){
 /* ============ 초기화 ============ */
 function loadSample(){stop();build(SAMPLE);pos={t:0,i:0};render();window.scrollTo({top:0})}
 function init(){
-  $("#dateLabel").textContent=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"})+" · v5";
+  $("#dateLabel").textContent=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"})+" · v6";
   [0.8,1.0,1.2,1.5].forEach(r=>{const c=document.createElement("button");c.className="chip";c.dataset.r=r;c.textContent=r.toFixed(1)+"x";c.onclick=()=>setRate(r);$("#speeds").append(c)});
   $("#btnSample").onclick=loadSample;$("#btnSample2").onclick=loadSample;
   $("#btnGen").onclick=generate;$("#btnClear").onclick=()=>{$("#paste").value="";setStatus("")};
@@ -559,8 +563,9 @@ function init(){
   $("#dSpeed").onclick=()=>{const L=[0.8,1.0,1.2,1.5];setRate(L[(L.indexOf(settings.rate)+1)%L.length])};
   const dlg=$("#dlg");
   $("#btnSet").onclick=()=>{$("#sKey").value=settings.key;$("#sPw").value=settings.pw||"";$("#sModel").value=settings.model;$("#sProfile").value=settings.profile;
-    $("#sKeep").checked=settings.keep;$("#sWake").checked=settings.wake;pickVoice();dlg.showModal()};
+    $("#sPitch").value=String(settings.pitch||1);$("#sKeep").checked=settings.keep;$("#sWake").checked=settings.wake;pickVoice();dlg.showModal()};
   $("#sCancel").onclick=()=>dlg.close();
+  $("#sNext").onclick=()=>{const sel=$("#sVoice");if(sel.options.length<2)return;sel.selectedIndex=(sel.selectedIndex+1)%sel.options.length;$("#sTest").click()};
   $("#sTest").onclick=()=>{
     const hint=$("#voiceHint");
     if(!synth){hint.textContent="이 브라우저는 음성 재생을 지원하지 않습니다.";return}
@@ -568,14 +573,15 @@ function init(){
     hint.textContent="한국어 음성 "+n+"개 발견. 소리가 나는지 들어 보세요…";
     try{synth.cancel()}catch(e){}
     setTimeout(()=>{
-      const u=new SpeechSynthesisUtterance("안녕하세요. 모닝 프리즘 소리 테스트입니다.");u.lang="ko-KR";if(voice)u.voice=voice;
-      u.onstart=()=>{hint.textContent="한국어 음성 "+n+"개 · 재생 시작됨. 소리가 안 들리면 미디어 볼륨을 확인하세요."};
+      const vs=synth.getVoices().filter(v=>/^ko/i.test(v.lang));const pv=vs.find(v=>v.voiceURI===$("#sVoice").value)||voice;
+      const u=new SpeechSynthesisUtterance("안녕하세요. 좋은 아침입니다. 모닝 프리즘 브리핑을 시작하겠습니다.");u.lang="ko-KR";if(pv){u.voice=pv;hint.dataset.name=pv.name}u.pitch=parseFloat($("#sPitch").value)||1;u.rate=settings.rate;
+      u.onstart=()=>{hint.textContent="재생 중: "+(hint.dataset.name||"기본 음성")+" · 한국어 음성 "+n+"개. 마음에 들면 저장을 누르세요."};
       u.onerror=(e)=>{hint.textContent="음성 오류: "+e.error+(n?"":" · 한국어 음성이 설치되어 있지 않습니다.")};
       curUtt=u;synth.speak(u);
     },100);
   };
   $("#sSave").onclick=()=>{settings.key=$("#sKey").value.trim();const oldPw=settings.pw;settings.pw=$("#sPw").value.trim();settings.model=$("#sModel").value.trim()||"claude-sonnet-5-5";
-    settings.profile=$("#sProfile").value.trim()||DEFAULT_PROFILE;settings.voice=$("#sVoice").value;settings.keep=$("#sKeep").checked;settings.wake=$("#sWake").checked;
+    settings.profile=$("#sProfile").value.trim()||DEFAULT_PROFILE;settings.voice=$("#sVoice").value;settings.pitch=parseFloat($("#sPitch").value)||1;settings.keep=$("#sKeep").checked;settings.wake=$("#sWake").checked;
     saveSettings();pickVoice();dlg.close();if(settings.pw&&settings.pw!==oldPw)initArchive()};
   if(synth){pickVoice();synth.onvoiceschanged=pickVoice}
   setupMedia();
