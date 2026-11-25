@@ -9,7 +9,7 @@ from mutagen.mp3 import MP3
 OUT = sys.argv[1] if len(sys.argv) > 1 else "_audio"
 DAYS = int(sys.argv[2]) if len(sys.argv) > 2 else int(os.environ.get("AUDIO_DAYS", "3"))
 VOICE = os.environ.get("TTS_VOICE", "ko-KR-HyunsuMultilingualNeural")   # 남성(부드러운 톤)
-RATE = os.environ.get("TTS_RATE", "+10%")
+RATE = os.environ.get("TTS_RATE", "+18%")
 PITCH = os.environ.get("TTS_PITCH", "+0Hz")
 FALLBACK_VOICE = "ko-KR-InJoonNeural"
 PW = os.environ.get("BRIEFING_PASSWORD", "")
@@ -59,7 +59,9 @@ async def make_day(d):
     chash = hashlib.sha256(json.dumps(b, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:16]
     if os.path.exists(mf):
         old = json.load(open(mf))
-        if (old.get("voice"), old.get("rate"), old.get("pitch"), old.get("hash")) == (VOICE, RATE, PITCH, chash):
+        newest = d == json.load(open("briefings/index.json"))["dates"][0]
+        same = (old.get("voice"), old.get("rate"), old.get("pitch"), old.get("hash")) == (VOICE, RATE, PITCH, chash)
+        if same or (not newest and old.get("hash") == chash):
             print(d, "이미 있음"); return
     tmp = tempfile.mkdtemp()
     iters = 300000
