@@ -183,6 +183,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <input id="sModel" type="text">
   <label for="sVoice">한국어 음성</label>
   <select id="sVoice"></select>
+  <details style="margin-top:10px"><summary>재생 기록 (끊김 원인 확인용)</summary><pre id="sLog" style="white-space:pre-wrap;font-size:11px;max-height:160px;overflow:auto;color:#9aa4b8"></pre></details>
   <label for="sPitch">목소리 높낮이 (낮출수록 굵은 남성 느낌)</label>
   <select id="sPitch"><option value="1">보통</option><option value="0.9">약간 낮게</option><option value="0.85">낮게(기본)</option><option value="0.75">더 낮게</option><option value="0.65">아주 낮게</option></select>
   <div class="row" style="margin-top:8px"><button class="btn" id="sTest">🔊 선택한 목소리 들어보기</button><button class="btn" id="sNext">⏭ 다음 목소리로 들어보기</button></div>
@@ -348,6 +349,8 @@ function updateUI(){
 }
 
 
+let userPause=false,aBusy=false;
+function plog(m){try{const a=LS.get("mp_log",[]);a.push(new Date().toLocaleTimeString("ko-KR",{hour12:false})+" "+m);while(a.length>80)a.shift();LS.set("mp_log",a)}catch(e){}}
 /* ============ 음성 파일 엔진(남성 아나운서 mp3 · 화면 꺼도 재생) ============ */
 let aMan=null,aKey=null,aEl=null,aTrack=-1,aLoading=false,aUrls={};
 function aOn(){return !!aMan&&settings.useAudio!==false}
@@ -399,19 +402,24 @@ function aElem(){
     if(playAll&&pos.t<flat.length-1){pos={t:pos.t+1,i:0};savePos();aPlay(pos.t,0)}
     else{playing=false;pos={t:pos.t,i:0};savePos();releaseHold();updateUI()}
   });
-  aEl.addEventListener("error",()=>{diag("음성 파일 재생 오류. 기기 음성으로 전환합니다.");aMan=null;if(playing){hardCancel();setTimeout(speakCurrent,90)}});
+  aEl.addEventListener("pause",()=>{
+    plog("pause 이벤트 (재생중="+playing+", 직접멈춤="+userPause+", 끝="+aEl.ended+", 화면="+document.visibilityState+")");
+    if(playing&&aOn()&&!aEl.ended&&!userPause&&!aBusy)setTimeout(()=>{if(playing&&aEl.paused&&!userPause&&!aBusy)aEl.play().then(()=>plog("자동 재개 성공")).catch(e=>plog("자동 재개 실패 "+e.name))},400);
+  });
+  ["waiting","stalled","suspend","emptied"].forEach(n=>aEl.addEventListener(n,()=>plog(n)));
+  aEl.addEventListener("error",()=>{plog("error "+(aEl.error&&aEl.error.code));diag("음성 파일 재생 오류. 기기 음성으로 전환합니다.");aMan=null;if(playing){hardCancel();setTimeout(speakCurrent,90)}});
   return aEl;
 }
 async function aPlay(t,i){
-  const el=aElem(),my=++token;aLoading=true;diag("음성 파일을 불러오는 중…");updateUI();
+  const el=aElem(),my=++token;aLoading=true;aBusy=true;userPause=false;diag("음성 파일을 불러오는 중…");updateUI();
   try{
     const url=await aLoadTrack(t);if(my!==token)return;
     if(aTrack!==t||el.src!==url){el.src=url;aTrack=t;await new Promise(res=>{const f=()=>{el.removeEventListener("loadedmetadata",f);res()};el.addEventListener("loadedmetadata",f);setTimeout(res,4000)})}
     el.currentTime=i>0?sentTime(t,i):0;el.playbackRate=settings.rate;el.preservesPitch=true;
-    await el.play();aLoading=false;diag("");mediaMeta();
+    await el.play();aLoading=false;aBusy=false;diag("");mediaMeta();plog("재생 시작 트랙"+(t+1));
   }catch(e){
-    aLoading=false;if(my!==token)return;
-    diag("음성 파일을 열지 못해 기기 음성으로 읽습니다. ("+(e.message||e.name)+")");aMan=null;
+    aLoading=false;aBusy=false;if(my!==token)return;
+    plog("재생 실패 "+(e.message||e.name));diag("음성 파일을 열지 못해 기기 음성으로 읽습니다. ("+(e.message||e.name)+")");aMan=null;
     setTimeout(speakCurrent,90);
   }
 }
@@ -460,8 +468,8 @@ function playFrom(t,i,all){
   setTimeout(speakCurrent,90);
 }
 function play(){ if(!brief)return; playFrom(pos.t,pos.i,playAll) }
-function pause(){playing=false;hardCancel();try{aEl&&aEl.pause()}catch(e){}savePos();releaseHold();updateUI()}
-function stop(){playing=false;hardCancel();try{if(aEl){aEl.pause();aEl.currentTime=0}}catch(e){}pos.i=0;savePos();releaseHold();updateUI()}
+function pause(){userPause=true;playing=false;hardCancel();try{aEl&&aEl.pause()}catch(e){}savePos();releaseHold();updateUI()}
+function stop(){userPause=true;playing=false;hardCancel();try{if(aEl){aEl.pause();aEl.currentTime=0}}catch(e){}pos.i=0;savePos();releaseHold();updateUI()}
 function toggle(){if(!brief){loadSample();play();return}playing?pause():play()}
 function skip(n){ // 문장 단위 이동
   if(!brief)return;
@@ -504,7 +512,11 @@ function releaseHold(){
   try{keepAudio&&keepAudio.pause()}catch(e){}
   try{wakeLock&&wakeLock.release()}catch(e){} wakeLock=null;
 }
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&playing)acquireHold() });
+document.addEventListener("visibilitychange",()=>{
+  plog("화면 "+document.visibilityState+(aEl?" · 오디오 "+(aEl.paused?"멈춤":"재생중"):""));
+  if(document.visibilityState==="visible"&&playing){acquireHold();if(aOn()&&aEl&&aEl.paused&&!userPause&&!aBusy)aEl.play().then(()=>plog("복귀 후 재개")).catch(e=>plog("복귀 후 재개 실패 "+e.name))}
+});
+setInterval(()=>{if(playing&&aOn()&&aEl&&aEl.paused&&!userPause&&!aBusy&&!aLoading){aEl.play().then(()=>plog("감시: 재개")).catch(()=>{})}},3000);
 function setupMedia(){
   if(!("mediaSession" in navigator))return;
   const h=(a,f)=>{try{navigator.mediaSession.setActionHandler(a,f)}catch(e){}};
@@ -627,7 +639,7 @@ async function initArchive(){
 /* ============ 초기화 ============ */
 function loadSample(){stop();build(SAMPLE);pos={t:0,i:0};render();window.scrollTo({top:0})}
 function init(){
-  $("#dateLabel").textContent=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"})+" · v7";
+  $("#dateLabel").textContent=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"})+" · v8";
   [0.8,1.0,1.2,1.5].forEach(r=>{const c=document.createElement("button");c.className="chip";c.dataset.r=r;c.textContent=r.toFixed(1)+"x";c.onclick=()=>setRate(r);$("#speeds").append(c)});
   $("#btnSample").onclick=loadSample;$("#btnSample2").onclick=loadSample;
   $("#btnGen").onclick=generate;$("#btnClear").onclick=()=>{$("#paste").value="";setStatus("")};
@@ -638,7 +650,7 @@ function init(){
   $("#dSpeed").onclick=()=>{const L=[0.8,1.0,1.2,1.5];setRate(L[(L.indexOf(settings.rate)+1)%L.length])};
   const dlg=$("#dlg");
   $("#btnSet").onclick=()=>{$("#sKey").value=settings.key;$("#sPw").value=settings.pw||"";$("#sModel").value=settings.model;$("#sProfile").value=settings.profile;
-    $("#sPitch").value=String(settings.pitch||1);$("#sKeep").checked=settings.keep;$("#sWake").checked=settings.wake;pickVoice();dlg.showModal()};
+    $("#sPitch").value=String(settings.pitch||1);$("#sLog").textContent=(LS.get("mp_log",[])||[]).join("\n")||"기록 없음";$("#sKeep").checked=settings.keep;$("#sWake").checked=settings.wake;pickVoice();dlg.showModal()};
   $("#sCancel").onclick=()=>dlg.close();
   $("#sNext").onclick=()=>{const sel=$("#sVoice");if(sel.options.length<2)return;sel.selectedIndex=(sel.selectedIndex+1)%sel.options.length;$("#sTest").click()};
   $("#sTest").onclick=()=>{

@@ -52,19 +52,21 @@ async def tts_one(text, path):
     raise RuntimeError(f"음성 생성 실패: {last}")
 
 async def make_day(d):
+    import hashlib
     dst = os.path.join(OUT, d)
     mf = os.path.join(dst, "manifest.json")
+    b = load_brief(d)
+    chash = hashlib.sha256(json.dumps(b, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:16]
     if os.path.exists(mf):
         old = json.load(open(mf))
-        if (old.get("voice"), old.get("rate"), old.get("pitch")) == (VOICE, RATE, PITCH):
+        if (old.get("voice"), old.get("rate"), old.get("pitch"), old.get("hash")) == (VOICE, RATE, PITCH, chash):
             print(d, "이미 있음"); return
-    b = load_brief(d)
     tmp = tempfile.mkdtemp()
     iters = 300000
     salt = os.urandom(16)
     k = key_for(salt, iters)
     os.makedirs(dst + ".part", exist_ok=True)
-    man = {"v": 1, "id": d, "iter": iters, "salt": base64.b64encode(salt).decode(), "voice": VOICE, "rate": RATE, "pitch": PITCH, "tracks": []}
+    man = {"v": 1, "id": d, "iter": iters, "salt": base64.b64encode(salt).decode(), "voice": VOICE, "rate": RATE, "pitch": PITCH, "hash": chash, "tracks": []}
     for ti, tr in enumerate(b["tracks"]):
         segfiles, segs, cur = [], [], 0.0
         sem = asyncio.Semaphore(4)  # 4개씩 동시에 만들어 시간을 줄입니다
