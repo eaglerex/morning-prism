@@ -36,7 +36,7 @@ jobs:
       - name: 사이트 조립
         run: |
           mkdir _site
-          cp index.html sw.js manifest.webmanifest icon-192.png icon-512.png check.html voices.html _site/
+          cp index.html sw.js manifest.webmanifest icon-192.png icon-512.png check.html voices.html inbox.html _site/
           if [ -d _samples ]; then cp -r _samples _site/samples; fi
           cp -r briefings _site/briefings
           if [ -d _audio ]; then cp -r _audio _site/audio; fi
